@@ -49,6 +49,17 @@ If nothing is detected, proceed to manual collection in Phase 3.
 - Source directory: look for `src/`, `lib/`, `app/`, `internal/`, or the main source root
 - Architecture pattern: infer from structure (e.g., MVC, layered, hexagonal, flat) — describe briefly what you see
 
+### Beads state detection
+
+Probe `.beads/`:
+- `.beads/dolt/` exists → BEADS_STATE = `already-bootstrapped`
+- `.beads/issues.jsonl` or `.beads/clone-contract.json` exists (but no dolt/) → BEADS_STATE = `fresh-clone`
+- none of the above → BEADS_STATE = `none`
+
+If `.beads/config.yaml` or `.beads/clone-contract.json` exists, read `issue-prefix` / `issue_prefix` from it and use that as the detected BEADS_PREFIX (do not overwrite it later).
+
+Otherwise, derive a default BEADS_PREFIX from PROJECT_NAME: lowercase, strip non-alphanumerics, take the first 2–6 chars or the acronym of word-boundaries (e.g. `my-cool-app` → `mca`, `gloggur-headquarters` → `ghq`).
+
 ---
 
 ## Phase 3 — Collect & Confirm Values
@@ -68,8 +79,11 @@ Detected configuration for bootstrap:
   SOURCE_DIR:          src/
   ARCHITECTURE_PATTERN: Layered — routes, services, repositories
   TOOL_TARGET:         both (Recommended — generates AGENTS.md + .claude/CLAUDE.md)
+  BEADS_PREFIX:        myp
+  BEADS_STATE:         fresh-clone — will import from .beads/issues.jsonl
 
 Are these correct? Enter the number of any value to change it, or 'yes' to continue.
+If BEADS_STATE is `already-bootstrapped` or `fresh-clone` and a prefix was read from an existing file, mark BEADS_PREFIX as read-only — changing it would desync the DB.
 ```
 
 Always ask for `PROJECT_DESCRIPTION` if it could not be auto-detected.
@@ -138,9 +152,60 @@ Follow existing patterns in `{{SOURCE_DIR}}` when implementing new features. Exp
 - No dead code, no commented-out blocks, no TODO left behind after a feature
 - Tests are not optional
 
+## Task Tracking — Beads
+
+This project uses [beads](https://github.com/steveyegge/beads) (`bd`) for task tracking. Issue prefix: `{{BEADS_PREFIX}}`.
+
+Before starting new work:
+    bd ready --json           # list available tasks
+    bd update <id> --claim --json   # claim one
+
+Creating a task:
+    bd create --title "..." -p 2 --json
+
+Closing a task:
+    bd close <id> --reason "done" --json
+
+`.beads/issues.jsonl` is the git-tracked snapshot; the pre-commit hook refreshes it via `bd export --no-memories` and auto-stages changes, so task state travels with commits. Do not edit `.beads/issues.jsonl` by hand. Do not bypass the hook (`--no-verify`).
+
 ```
 
 (Remember to also substitute the nested `{{PLACEHOLDERS}}` within the overview block.)
+
+### Beads setup
+
+Preservation rules (never overwrite these if present):
+- `.beads/issues.jsonl`
+- `.beads/interactions.jsonl`
+- `.beads/dolt/` (entire directory)
+- `.beads/config.yaml` — if present, leave it; do NOT regenerate
+- `.beads/clone-contract.json` — if present, leave it; do NOT regenerate
+
+Files to write (only if missing):
+| Template | Target path | Mode |
+|---|---|---|
+| `beads/config.yaml.tmpl` | `.beads/config.yaml` | 0644 |
+| `beads/clone-contract.json.tmpl` | `.beads/clone-contract.json` | 0644 |
+| `beads/gitignore` | `.beads/.gitignore` | 0644 |
+
+Hook files (always write — idempotent):
+| Template | Target path | Mode |
+|---|---|---|
+| `githooks/_common.sh` | `.githooks/_common.sh` | 0755 |
+| `githooks/beads-pre-commit.sh` | `.githooks/beads-pre-commit.sh` | 0755 |
+| `githooks/pre-commit` | `.githooks/pre-commit` | 0755 |
+
+If `.githooks/pre-commit` already exists and differs from the bootstrap version, do NOT overwrite — instead print a warning telling the user to source `beads-pre-commit.sh` from their existing hook (and show the one-liner to paste in). `_common.sh` and `beads-pre-commit.sh` are always safe to (re)write because they are self-contained.
+
+Wire up the hook path:
+    git config core.hooksPath .githooks
+
+Then run `bd` if available:
+- BEADS_STATE = `none`: `bd init -p <BEADS_PREFIX> --skip-agents --skip-hooks --json`
+- BEADS_STATE = `fresh-clone`: `bd init -p <BEADS_PREFIX> --skip-agents --skip-hooks --json` then `bd import .beads/issues.jsonl --json`
+- BEADS_STATE = `already-bootstrapped`: skip `bd init`/`bd import` — the DB is live
+
+If `bd` is not on PATH, print the install hint (`curl -sSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash`) and the commands the user should run manually; do not fail the bootstrap.
 
 ### Files to generate
 
@@ -185,6 +250,7 @@ Create the target directories if they don't exist.
     "SOURCE_DIR": "...",
     "ARCHITECTURE_PATTERN": "...",
     "TOOL_TARGET": "...",
+    "BEADS_PREFIX": "...",
     "BOOTSTRAP_DATE": "..."
   },
   "files": [
@@ -204,6 +270,12 @@ File entries for the manifest:
 { "target": ".claude/skills/retro.md", "source": "skills/retro.md.tmpl", "category": "skill" }
 { "target": ".claude/skills/sync-bootstrap.md", "source": "skills/sync-bootstrap.md.tmpl", "category": "skill" }
 { "target": ".claude/workflows/feature-workflow.md", "source": "workflows/feature-workflow.md.tmpl", "category": "workflow" }
+{ "target": ".beads/config.yaml", "source": "beads/config.yaml.tmpl", "category": "beads" }
+{ "target": ".beads/clone-contract.json", "source": "beads/clone-contract.json.tmpl", "category": "beads" }
+{ "target": ".beads/.gitignore", "source": "beads/gitignore", "category": "beads" }
+{ "target": ".githooks/_common.sh", "source": "githooks/_common.sh", "category": "hook" }
+{ "target": ".githooks/beads-pre-commit.sh", "source": "githooks/beads-pre-commit.sh", "category": "hook" }
+{ "target": ".githooks/pre-commit", "source": "githooks/pre-commit", "category": "hook" }
 ```
 
 ---
@@ -227,7 +299,13 @@ Bootstrap complete! Generated files for Claude Code + Codex CLI:
   ✓ .claude/skills/sync-bootstrap.md
   ✓ .claude/workflows/feature-workflow.md
 
+Beads:
+  ✓ Prefix:        ghq
+  ✓ State:         fresh-clone → imported 42 issues
+  ✓ Hook path:     .githooks (configured via `git config core.hooksPath`)
+
 Next steps:
+  → Run `bd ready --json` to see available work
   → Run /feature-start to begin your first feature (Claude Code)
   → After merging a feature, run /retro to capture learnings
   → Run /sync-bootstrap to pull future template improvements
@@ -247,7 +325,13 @@ Bootstrap complete! Generated files for Claude Code:
   ✓ .claude/skills/sync-bootstrap.md
   ✓ .claude/workflows/feature-workflow.md
 
+Beads:
+  ✓ Prefix:        ghq
+  ✓ State:         fresh-clone → imported 42 issues
+  ✓ Hook path:     .githooks (configured via `git config core.hooksPath`)
+
 Next steps:
+  → Run `bd ready --json` to see available work
   → Run /feature-start to begin your first feature
   → After merging a feature, run /retro to capture learnings
   → Run /sync-bootstrap to pull future template improvements
@@ -259,6 +343,14 @@ Bootstrap complete! Generated files for Codex CLI (and other AGENTS.md-compatibl
 
   ✓ AGENTS.md
   ✓ .claude/.bootstrap-manifest.json
+
+Beads:
+  ✓ Prefix:        ghq
+  ✓ State:         fresh-clone → imported 42 issues
+  ✓ Hook path:     .githooks (configured via `git config core.hooksPath`)
+
+Next steps:
+  → Run `bd ready --json` to see available work
 
 Note: The full Claude Code workflow system (.claude/skills/, .claude/agents/, etc.)
 was not generated. Re-run /bootstrap and select "both" to add Claude Code support.

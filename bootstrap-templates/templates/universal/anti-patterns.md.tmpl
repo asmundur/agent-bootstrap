@@ -9,6 +9,7 @@ Hard constraints for all agents working on {{PROJECT_NAME}}. These are non-negot
 - **Committing without running tests** — `{{TEST_COMMAND}}` must pass before any commit. No exceptions.
 - **Creating commits without user review** — Stage 2.5 human review is mandatory. Never skip it.
 - **Force-pushing or hard-resetting** — These are destructive. Ask the user first.
+- **Bypassing hooks** — Never run `git commit --no-verify` — it skips the beads task handoff.
 
 ## Code Quality Anti-Patterns
 

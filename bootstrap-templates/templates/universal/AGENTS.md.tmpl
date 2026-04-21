@@ -31,6 +31,22 @@
 - No dead code, no commented-out blocks, no TODOs left behind after a feature
 - Tests are not optional
 
+## Task Tracking — Beads
+
+This project uses [beads](https://github.com/steveyegge/beads) (`bd`) for task tracking. Issue prefix: `{{BEADS_PREFIX}}`.
+
+Before starting new work:
+    bd ready --json           # list available tasks
+    bd update <id> --claim --json   # claim one
+
+Creating a task:
+    bd create --title "..." -p 2 --json
+
+Closing a task:
+    bd close <id> --reason "done" --json
+
+`.beads/issues.jsonl` is the git-tracked snapshot; the pre-commit hook refreshes it via `bd export --no-memories` and auto-stages changes, so task state travels with commits. Do not edit `.beads/issues.jsonl` by hand. Do not bypass the hook (`--no-verify`).
+
 ## Working Agreements
 
 - Explore the codebase and understand existing patterns before implementing anything
