@@ -1,0 +1,56 @@
+# Sync-Bootstrap Skill
+
+You are running the sync-bootstrap skill for **{{PROJECT_NAME}}**. This skill compares your local `.claude/` configuration against the upstream bootstrap template and lets you selectively import improvements.
+
+## When to Use This
+
+Run this after:
+- The bootstrap template has been updated (e.g., another project's retro added new patterns)
+- You want to pull in best practices discovered by other projects using this bootstrap
+
+## Phase 1 — Locate Template Source
+
+The bootstrap template lives at the path recorded in `.claude/.bootstrap-manifest.json` under `templateSource`.
+
+Read `.claude/.bootstrap-manifest.json` to find `templateSource`.
+
+## Phase 2 — Compare Files
+
+For each file pair (local vs template), identify additions in the template that are not in the local file:
+
+| Template File | Local File | New Content |
+|---|---|---|
+| `CLAUDE.md.tmpl` | `.claude/CLAUDE.md` | ... |
+| `anti-patterns.md.tmpl` | `.claude/anti-patterns.md` | ... |
+| `agents/feature-implementation.md.tmpl` | `.claude/agents/feature-implementation.md` | ... |
+| `agents/git-manager.md.tmpl` | `.claude/agents/git-manager.md` | ... |
+| `skills/feature-start.md.tmpl` | `.claude/skills/feature-start.md` | ... |
+| `skills/retro.md.tmpl` | `.claude/skills/retro.md` | ... |
+| `workflows/feature-workflow.md.tmpl` | `.claude/workflows/feature-workflow.md` | ... |
+
+Focus on **additions** — content in the template that doesn't exist locally. Don't flag differences caused by placeholder substitution (e.g., `{{PROJECT_NAME}}` vs `{{PROJECT_NAME}}`).
+
+## Phase 3 — Present Import Menu
+
+Show the user a numbered list of available improvements:
+
+```
+Available improvements from upstream template:
+
+1. [anti-patterns.md] New anti-pattern: "Skipping context exploration before implementation"
+2. [feature-workflow.md] Added context budget check before Stage 2 handoff
+3. [feature-implementation.md] Clarified post-implementation cleanup checklist
+
+Enter numbers to import (comma-separated), or 'all', or 'none':
+```
+
+## Phase 4 — Adapt & Apply
+
+For each selected item:
+1. Replace any `{{PLACEHOLDER}}` values in the imported content with the project-specific values from `.bootstrap-manifest.json`
+2. Insert the content into the appropriate local file at the appropriate location
+3. Confirm each change with the user before writing
+
+## Phase 5 — Report
+
+List all changes applied and suggest running the first available `/feature-start` to verify nothing broke.

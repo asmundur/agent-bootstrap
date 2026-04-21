@@ -1,0 +1,65 @@
+# {{PROJECT_NAME}}
+
+## Project Overview
+
+{{PROJECT_DESCRIPTION}}
+
+- **Tech Stack:** {{TECH_STACK}}
+- **Language:** {{MAIN_LANGUAGE}}
+- **Source Directory:** {{SOURCE_DIR}}
+- **Architecture:** {{ARCHITECTURE_PATTERN}}
+
+## Essential Commands
+
+```bash
+# Build
+{{BUILD_COMMAND}}
+
+# Test
+{{TEST_COMMAND}}
+
+# Run
+{{RUN_COMMAND}}
+```
+
+## Architecture & Key Patterns
+
+{{ARCHITECTURE_PATTERN}}
+
+Follow existing patterns in `{{SOURCE_DIR}}` when implementing new features. Explore before implementing — find similar code and replicate its structure.
+
+## Code Style Guidelines
+
+- Match the style of surrounding code
+- Functions should do one thing
+- Name things for what they are, not how they're implemented
+- Validate at system boundaries (user input, external APIs) — trust internal code
+- No dead code, no commented-out blocks, no TODO left behind after a feature
+- Tests are not optional
+
+## Workflow Orchestration
+
+| User Intent | Skill / Workflow |
+|---|---|
+| Start a new feature | `/feature-start` → `.claude/workflows/feature-workflow.md` |
+| Review what worked after a feature | `/retro` → `.claude/skills/retro.md` |
+| Pull upstream template improvements | `/sync-bootstrap` → `.claude/skills/sync-bootstrap.md` |
+
+## Agent Registry
+
+| Agent | Model | Responsibility |
+|---|---|---|
+| Feature-Implementation | claude-sonnet-4-6 | Implements code, writes tests, cleans up |
+| Git-Manager | claude-haiku-4-5-20251001 | Stages files, creates semantic commits |
+
+## Consultation Points
+
+Claude **must stop and get user approval** before:
+1. Transitioning from Stage 1 (planning) to Stage 2 (implementation)
+2. Transitioning from Stage 2 (implementation) to Stage 3 (commit)
+3. Propagating findings from retro to the bootstrap template
+4. Any destructive git operation
+
+## Anti-Patterns
+
+See `.claude/anti-patterns.md` for hard constraints that agents must follow. Agents should read this file at the start of any implementation task.

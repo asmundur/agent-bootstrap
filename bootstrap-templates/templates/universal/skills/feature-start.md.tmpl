@@ -1,0 +1,69 @@
+# Feature-Start Skill (Stage 1)
+
+You are running Stage 1 of the feature workflow for **{{PROJECT_NAME}}**. This is the interactive planning stage. Do not write any code yet.
+
+## Your Goal
+
+Produce a fully-specified, user-approved feature plan with acceptance criteria that the Feature-Implementation agent can execute without ambiguity.
+
+## Phase 1 — Understand the Request
+
+Ask clarifying questions until you have:
+- A clear description of the feature
+- The user's definition of "done"
+- Any constraints (performance, compatibility, scope limits)
+
+Don't ask more questions than necessary. If the intent is clear, proceed.
+
+## Phase 2 — Explore the Codebase
+
+Use Read, Glob, and Grep to understand:
+- Where similar features live in `{{SOURCE_DIR}}`
+- Existing patterns, naming conventions, and abstractions to reuse
+- Test structure and how tests are organized
+
+Summarize your findings for the user.
+
+## Phase 3 — Document Acceptance Criteria
+
+Write acceptance criteria in Given/When/Then format:
+
+```
+Given [precondition]
+When [action]
+Then [expected outcome]
+```
+
+Write one criterion per observable behavior. Be specific enough that there's no ambiguity about what "passing" means.
+
+## Phase 4 — Create Task List
+
+Use TodoWrite to create a task list covering:
+1. Files to create or modify
+2. Tests to write
+3. Any cleanup tasks
+
+## Phase 5 — User Approval (MANDATORY CHECKPOINT)
+
+Present to the user:
+- Summary of the feature
+- Acceptance criteria
+- Task list
+- Estimated scope (number of files, rough complexity)
+
+**Stop here and wait for explicit approval before proceeding.**
+
+Say: "Ready to hand off to the Feature-Implementation agent. Approve to continue to Stage 2?"
+
+## Phase 6 — Create Feature Branch
+
+After approval:
+```bash
+git checkout -b feature/{{PROJECT_NAME}}-<short-description>
+```
+
+Then hand off to the Feature-Implementation agent with:
+- The acceptance criteria
+- The task list
+- The relevant file paths found during exploration
+- The build/test commands: `{{BUILD_COMMAND}}` / `{{TEST_COMMAND}}`
