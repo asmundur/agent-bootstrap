@@ -1,0 +1,43 @@
+# {{PROJECT_NAME}}
+
+## Project Overview
+
+{{PROJECT_DESCRIPTION}}
+
+- **Tech Stack:** {{TECH_STACK}}
+- **Language:** {{MAIN_LANGUAGE}}
+- **Source Directory:** {{SOURCE_DIR}}
+- **Architecture:** {{ARCHITECTURE_PATTERN}}
+
+## Essential Commands
+
+```bash
+# Build
+{{BUILD_COMMAND}}
+
+# Test
+{{TEST_COMMAND}}
+
+# Run
+{{RUN_COMMAND}}
+```
+
+## Code Style Guidelines
+
+- Match the style of surrounding code
+- Functions should do one thing
+- Name things for what they are, not how they're implemented
+- Validate at system boundaries (user input, external APIs) — trust internal code
+- No dead code, no commented-out blocks, no TODOs left behind after a feature
+- Tests are not optional
+
+## Working Agreements
+
+- Explore the codebase and understand existing patterns before implementing anything
+- Plan and confirm acceptance criteria with the user before writing code
+- Get explicit user approval before committing changes
+- Run the full test suite before any commit — do not commit with failing tests
+- Stage files individually; never blindly add everything
+- Semantic commit messages: `<type>(<scope>): summary` with a body explaining *why*
+- Never force-push, never bypass commit hooks
+- Never implement beyond what was agreed
