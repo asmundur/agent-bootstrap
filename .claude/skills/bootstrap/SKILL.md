@@ -220,6 +220,7 @@ If `bd` is not on PATH, print the install hint (`curl -sSL https://raw.githubuse
 | `skills/feature-start.md.tmpl` | `.claude/skills/feature-start.md` |
 | `skills/retro.md.tmpl` | `.claude/skills/retro.md` |
 | `skills/sync-bootstrap.md.tmpl` | `.claude/skills/sync-bootstrap.md` |
+| `skills/fabricate-beads-history.md.tmpl` | `.claude/skills/fabricate-beads-history.md` |
 | `workflows/feature-workflow.md.tmpl` | `.claude/workflows/feature-workflow.md` |
 
 **Also generate** when TOOL_TARGET is `both` or `codex`:
@@ -227,6 +228,7 @@ If `bd` is not on PATH, print the install hint (`curl -sSL https://raw.githubuse
 | Template | Target Path |
 |---|---|
 | `AGENTS.md.tmpl` | `AGENTS.md` |
+| `skills/fabricate-beads-history.md.tmpl` | `.codex/skills/fabricate-beads-history.md` |
 
 Create the target directories if they don't exist.
 
@@ -269,6 +271,8 @@ File entries for the manifest:
 { "target": ".claude/skills/feature-start.md", "source": "skills/feature-start.md.tmpl", "category": "skill" }
 { "target": ".claude/skills/retro.md", "source": "skills/retro.md.tmpl", "category": "skill" }
 { "target": ".claude/skills/sync-bootstrap.md", "source": "skills/sync-bootstrap.md.tmpl", "category": "skill" }
+{ "target": ".claude/skills/fabricate-beads-history.md", "source": "skills/fabricate-beads-history.md.tmpl", "category": "skill" }
+{ "target": ".codex/skills/fabricate-beads-history.md", "source": "skills/fabricate-beads-history.md.tmpl", "category": "skill" }
 { "target": ".claude/workflows/feature-workflow.md", "source": "workflows/feature-workflow.md.tmpl", "category": "workflow" }
 { "target": ".beads/config.yaml", "source": "beads/config.yaml.tmpl", "category": "beads" }
 { "target": ".beads/clone-contract.json", "source": "beads/clone-contract.json.tmpl", "category": "beads" }
@@ -297,6 +301,8 @@ Bootstrap complete! Generated files for Claude Code + Codex CLI:
   ✓ .claude/skills/feature-start.md
   ✓ .claude/skills/retro.md
   ✓ .claude/skills/sync-bootstrap.md
+  ✓ .claude/skills/fabricate-beads-history.md
+  ✓ .codex/skills/fabricate-beads-history.md
   ✓ .claude/workflows/feature-workflow.md
 
 Beads:
@@ -323,6 +329,7 @@ Bootstrap complete! Generated files for Claude Code:
   ✓ .claude/skills/feature-start.md
   ✓ .claude/skills/retro.md
   ✓ .claude/skills/sync-bootstrap.md
+  ✓ .claude/skills/fabricate-beads-history.md
   ✓ .claude/workflows/feature-workflow.md
 
 Beads:
@@ -342,6 +349,7 @@ Next steps:
 Bootstrap complete! Generated files for Codex CLI (and other AGENTS.md-compatible tools):
 
   ✓ AGENTS.md
+  ✓ .codex/skills/fabricate-beads-history.md
   ✓ .claude/.bootstrap-manifest.json
 
 Beads:
