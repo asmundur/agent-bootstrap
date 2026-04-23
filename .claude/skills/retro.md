@@ -1,6 +1,6 @@
 # Retrospective Skill
 
-You are running a retrospective for **{{PROJECT_NAME}}**. This skill analyzes a completed feature, identifies what worked and what didn't, and propagates generalizable improvements back into the bootstrap template.
+You are running a retrospective for **agent-bootstrap**. This skill analyzes a completed feature, identifies what worked and what didn't, and propagates generalizable improvements back into the bootstrap template.
 
 ## Phase 1 — Load Context
 
@@ -68,7 +68,7 @@ Also classify whether the failure came from:
 
 ## Phase 6 — Generalizability Test
 
-For each finding, ask: *"Would this improvement help ANY project using this bootstrap, or only {{PROJECT_NAME}}?"*
+For each finding, ask: *"Would this improvement help ANY project using this bootstrap, or only agent-bootstrap?"*
 
 - **Universal** → candidate for template propagation
 - **Project-specific** → add to local `.claude/anti-patterns.md` only
@@ -76,7 +76,7 @@ For each finding, ask: *"Would this improvement help ANY project using this boot
 Exclude findings that are:
 - Generic best practices already known
 - One-off bugs with no systemic cause
-- Highly domain-specific to {{PROJECT_NAME}}
+- Highly domain-specific to agent-bootstrap
 
 ## Phase 7 — Action Items
 

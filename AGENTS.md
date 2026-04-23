@@ -1,32 +1,32 @@
-# {{PROJECT_NAME}}
+# agent-bootstrap
 
 ## Project Overview
 
-{{PROJECT_DESCRIPTION}}
+A tech-agnostic bootstrap for AI coding workflows that generates Claude Code and Codex-compatible agents, skills, workflows, and beads integration from universal templates.
 
-- **Tech Stack:** {{TECH_STACK}}
-- **Language:** {{MAIN_LANGUAGE}}
-- **Source Directory:** {{SOURCE_DIR}}
-- **Architecture:** {{ARCHITECTURE_PATTERN}}
+- **Tech Stack:** Markdown + shell templates
+- **Language:** Markdown
+- **Source Directory:** bootstrap-templates/templates/universal
+- **Architecture:** Template-driven bootstrap repo — universal markdown and shell templates plus a bootstrap skill that materializes project-specific `.claude/`, `.codex/`, and `AGENTS.md` files.
 
 ## Essential Commands
 
 ```bash
 # Build
-{{BUILD_COMMAND}}
+printf 'No build step for this template repo\n'
 
 # Test
-{{TEST_COMMAND}}
+bash scripts/smoke-test-bootstrap.sh
 
 # Run
-{{RUN_COMMAND}}
+printf 'This repo generates bootstrap templates; see README.md\n'
 ```
 
 ## Feedback Loops
 
-- **Typecheck:** `{{TYPECHECK_COMMAND}}`
-- **Lint:** `{{LINT_COMMAND}}`
-- **Browser verification:** `{{BROWSER_VERIFY_COMMAND}}`
+- **Typecheck:** `not configured`
+- **Lint:** `not configured`
+- **Browser verification:** `not configured`
 
 If a feedback-loop command is set to `not configured`, skip it. Otherwise, use the fastest applicable loop before moving on to larger changes.
 
@@ -41,7 +41,7 @@ If a feedback-loop command is set to `not configured`, skip it. Otherwise, use t
 
 ## Task Tracking — Beads
 
-This project uses [beads](https://github.com/steveyegge/beads) (`bd`) for task tracking. Issue prefix: `{{BEADS_PREFIX}}`.
+This project uses [beads](https://github.com/steveyegge/beads) (`bd`) for task tracking. Issue prefix: `agb`.
 
 Before starting new work:
     bd ready --json           # list available tasks

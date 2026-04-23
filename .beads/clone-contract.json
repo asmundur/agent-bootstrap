@@ -1,0 +1,12 @@
+{
+  "mode": "bootstrap_required",
+  "backend": "dolt",
+  "issue_prefix": "agb",
+  "jsonl_export": "issues.jsonl",
+  "bootstrap_commands": [
+    "bd init -p agb --skip-agents --skip-hooks --json",
+    "bd import .beads/issues.jsonl --json",
+    "git config core.hooksPath .githooks"
+  ],
+  "read_probe": "bd status --json"
+}

@@ -1,4 +1,4 @@
-# Feature Workflow — {{PROJECT_NAME}}
+# Feature Workflow — agent-bootstrap
 
 This document defines the design-first feature development pipeline. It is referenced by the `/feature-start` skill.
 
@@ -45,11 +45,11 @@ Goals:
 - Acceptance criteria
 - Implementation slices
 - Relevant file paths
-- Build command: `{{BUILD_COMMAND}}`
-- Typecheck command: `{{TYPECHECK_COMMAND}}`
-- Lint command: `{{LINT_COMMAND}}`
-- Browser verification command: `{{BROWSER_VERIFY_COMMAND}}`
-- Test command: `{{TEST_COMMAND}}`
+- Build command: `printf 'No build step for this template repo\n'`
+- Typecheck command: `not configured`
+- Lint command: `not configured`
+- Browser verification command: `not configured`
+- Test command: `bash scripts/smoke-test-bootstrap.sh`
 
 ---
 

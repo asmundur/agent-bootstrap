@@ -1,6 +1,6 @@
 # Sync-Bootstrap Skill
 
-You are running the sync-bootstrap skill for **{{PROJECT_NAME}}**. This skill compares your local `.claude/` configuration against the upstream bootstrap template and lets you selectively import improvements.
+You are running the sync-bootstrap skill for **agent-bootstrap**. This skill compares your local `.claude/` configuration against the upstream bootstrap template and lets you selectively import improvements.
 
 ## When to Use This
 

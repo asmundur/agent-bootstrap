@@ -1,6 +1,6 @@
 # Feature-Start Skill (Stage 0 + Stage 1)
 
-You are running the planning portion of the feature workflow for **{{PROJECT_NAME}}**. This is an interactive design-and-planning stage. Do not write any code yet.
+You are running the planning portion of the feature workflow for **agent-bootstrap**. This is an interactive design-and-planning stage. Do not write any code yet.
 
 ## Your Goal
 
@@ -14,7 +14,7 @@ Before asking questions, load the durable project context when it exists:
 - `.claude/architecture/module-map.md`
 
 Then explore the codebase to understand:
-- Where similar features live in `{{SOURCE_DIR}}`
+- Where similar features live in `bootstrap-templates/templates/universal`
 - Existing module boundaries, naming conventions, and abstractions to reuse
 - Test structure and the fastest feedback loops available for this feature
 
@@ -35,10 +35,10 @@ Create or update `.claude/plans/<feature-slug>.md` with:
 - Interface changes
 - Acceptance criteria in Given/When/Then format
 - Feedback loops for this feature:
-  - Typecheck: `{{TYPECHECK_COMMAND}}`
-  - Lint: `{{LINT_COMMAND}}`
-  - Browser verification: `{{BROWSER_VERIFY_COMMAND}}`
-  - Tests: `{{TEST_COMMAND}}`
+  - Typecheck: `not configured`
+  - Lint: `not configured`
+  - Browser verification: `not configured`
+  - Tests: `bash scripts/smoke-test-bootstrap.sh`
 - Implementation slices in execution order
 - Beads-ready task slices for any work that should be split across multiple units
 - Open questions or explicitly parked decisions
@@ -75,7 +75,7 @@ Say: "Ready to hand off to the Feature-Implementation agent. Approve to continue
 
 After approval:
 ```bash
-git checkout -b feature/{{PROJECT_NAME}}-<short-description>
+git checkout -b feature/agent-bootstrap-<short-description>
 ```
 
 Then hand off to the Feature-Implementation agent with:
@@ -88,8 +88,8 @@ Then hand off to the Feature-Implementation agent with:
 - The implementation slices
 - The relevant file paths found during exploration
 - The commands:
-  - Build: `{{BUILD_COMMAND}}`
-  - Typecheck: `{{TYPECHECK_COMMAND}}`
-  - Lint: `{{LINT_COMMAND}}`
-  - Browser verification: `{{BROWSER_VERIFY_COMMAND}}`
-  - Test: `{{TEST_COMMAND}}`
+  - Build: `printf 'No build step for this template repo\n'`
+  - Typecheck: `not configured`
+  - Lint: `not configured`
+  - Browser verification: `not configured`
+  - Test: `bash scripts/smoke-test-bootstrap.sh`

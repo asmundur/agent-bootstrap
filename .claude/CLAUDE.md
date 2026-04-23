@@ -1,5 +1,7 @@
-{{AGENTS_MD_IMPORT}}# {{PROJECT_NAME}}
-{{PROJECT_OVERVIEW_SECTION}}
+@AGENTS.md
+
+# agent-bootstrap
+
 ## Agent Registry
 
 | Agent | Model | Responsibility |

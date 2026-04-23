@@ -7,7 +7,9 @@ Inspired by [aproorg/bootstrap-demo](https://github.com/aproorg/bootstrap-demo),
 ## What It Does
 
 - **Bootstrap** any project: scans your codebase, detects tech stack and commands, and generates a complete Claude Code orchestration setup
-- **Feature workflow**: structured 3-stage pipeline (planning → implementation → commit) with human review checkpoints
+- **Design-first feature workflow**: `/feature-start` begins by building a shared design concept, writes a reusable feature spec, and hands off a concrete implementation contract
+- **Shared language + architecture maps**: generate a ubiquitous-language glossary and a module map so planning and implementation use the same terms and boundaries
+- **Feedback-loop execution**: TDD-oriented implementation guidance with optional typecheck, lint, and browser verification commands alongside tests
 - **Retrospectives**: post-feature analysis with 5W root cause analysis that feeds learnings back into the template
 - **Sync**: pull upstream template improvements into your project as the template evolves
 
@@ -47,6 +49,15 @@ Claude will:
 /feature-start
 ```
 
+Useful companion skills:
+
+```
+/grill-me
+/ubiquitous-language
+/improve-architecture
+/tdd
+```
+
 ### 4. After a feature is merged, run a retrospective
 
 ```
@@ -71,12 +82,36 @@ After bootstrapping a project, the following files are created in `.claude/`:
 ├── agents/
 │   ├── feature-implementation.md
 │   └── git-manager.md
+├── architecture/                # Created on first use
+│   └── module-map.md
+├── context/                     # Created on first use
+│   └── ubiquitous-language.md
+├── plans/                       # Created on first use
+│   └── <feature-slug>.md
 ├── skills/
+│   ├── grill-me.md
+│   ├── ubiquitous-language.md
+│   ├── improve-architecture.md
+│   ├── tdd.md
 │   ├── feature-start.md
 │   ├── retro.md
-│   └── sync-bootstrap.md
+│   ├── sync-bootstrap.md
+│   └── fabricate-beads-history.md
 └── workflows/
     └── feature-workflow.md
+```
+
+When bootstrapped in `both` or `codex` mode, the repo also gets:
+
+```
+AGENTS.md                        # Tool-agnostic project contract
+.codex/
+└── skills/
+    ├── grill-me.md
+    ├── ubiquitous-language.md
+    ├── improve-architecture.md
+    ├── tdd.md
+    └── fabricate-beads-history.md
 ```
 
 ## Template Development

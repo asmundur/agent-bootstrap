@@ -40,6 +40,13 @@ Probe for stack indicator files in the project root:
 
 For `package.json`, read it and check the `scripts` field for actual command names.
 
+Also detect optional feedback-loop commands where they are clearly configured:
+- `TYPECHECK_COMMAND`: prefer existing scripts such as `typecheck`, `check-types`, or `tsc`
+- `LINT_COMMAND`: prefer an existing `lint` script or an obvious project lint command
+- `BROWSER_VERIFY_COMMAND`: prefer existing scripts such as `test:e2e`, `e2e`, `playwright`, or `cypress`
+
+If an optional command is not clearly configured, set it to `not configured` instead of inventing one.
+
 If multiple stack files are found, list them and ask the user which is primary.
 
 If nothing is detected, proceed to manual collection in Phase 3.
@@ -74,6 +81,9 @@ Detected configuration for bootstrap:
   TECH_STACK:          Node/TypeScript
   MAIN_LANGUAGE:       TypeScript
   BUILD_COMMAND:       npm run build
+  TYPECHECK_COMMAND:   npm run typecheck
+  LINT_COMMAND:        npm run lint
+  BROWSER_VERIFY_COMMAND: not configured
   TEST_COMMAND:        npm test
   RUN_COMMAND:         npm start
   SOURCE_DIR:          src/
@@ -94,6 +104,8 @@ Always ask for `PROJECT_DESCRIPTION` if it could not be auto-detected.
 - `codex` — generates only `AGENTS.md` at repo root. Choose if you only use Codex CLI (or other tools that read AGENTS.md).
 
 Collect overrides and update the values before proceeding.
+
+Runtime artifacts such as `.claude/plans/`, `.claude/context/`, and `.claude/architecture/` are created on first use by the generated skills. Do not create empty placeholder files for them during bootstrap.
 
 ---
 
@@ -130,6 +142,15 @@ The template uses two special placeholders that depend on `TOOL_TARGET`:
 # Build
 {{BUILD_COMMAND}}
 
+# Typecheck (optional)
+{{TYPECHECK_COMMAND}}
+
+# Lint (optional)
+{{LINT_COMMAND}}
+
+# Browser verification (optional)
+{{BROWSER_VERIFY_COMMAND}}
+
 # Test
 {{TEST_COMMAND}}
 
@@ -142,6 +163,14 @@ The template uses two special placeholders that depend on `TOOL_TARGET`:
 {{ARCHITECTURE_PATTERN}}
 
 Follow existing patterns in `{{SOURCE_DIR}}` when implementing new features. Explore before implementing — find similar code and replicate its structure.
+
+## Durable Artifacts
+
+- **Feature specs:** `.claude/plans/<feature-slug>.md`
+- **Ubiquitous language:** `.claude/context/ubiquitous-language.md`
+- **Module map:** `.claude/architecture/module-map.md`
+
+These files are created on first use by the generated skills.
 
 ## Code Style Guidelines
 
@@ -217,6 +246,10 @@ If `bd` is not on PATH, print the install hint (`curl -sSL https://raw.githubuse
 | `anti-patterns.md.tmpl` | `.claude/anti-patterns.md` |
 | `agents/feature-implementation.md.tmpl` | `.claude/agents/feature-implementation.md` |
 | `agents/git-manager.md.tmpl` | `.claude/agents/git-manager.md` |
+| `skills/grill-me.md.tmpl` | `.claude/skills/grill-me.md` |
+| `skills/ubiquitous-language.md.tmpl` | `.claude/skills/ubiquitous-language.md` |
+| `skills/improve-architecture.md.tmpl` | `.claude/skills/improve-architecture.md` |
+| `skills/tdd.md.tmpl` | `.claude/skills/tdd.md` |
 | `skills/feature-start.md.tmpl` | `.claude/skills/feature-start.md` |
 | `skills/retro.md.tmpl` | `.claude/skills/retro.md` |
 | `skills/sync-bootstrap.md.tmpl` | `.claude/skills/sync-bootstrap.md` |
@@ -228,6 +261,10 @@ If `bd` is not on PATH, print the install hint (`curl -sSL https://raw.githubuse
 | Template | Target Path |
 |---|---|
 | `AGENTS.md.tmpl` | `AGENTS.md` |
+| `skills/grill-me.md.tmpl` | `.codex/skills/grill-me.md` |
+| `skills/ubiquitous-language.md.tmpl` | `.codex/skills/ubiquitous-language.md` |
+| `skills/improve-architecture.md.tmpl` | `.codex/skills/improve-architecture.md` |
+| `skills/tdd.md.tmpl` | `.codex/skills/tdd.md` |
 | `skills/fabricate-beads-history.md.tmpl` | `.codex/skills/fabricate-beads-history.md` |
 
 Create the target directories if they don't exist.
@@ -247,6 +284,9 @@ Create the target directories if they don't exist.
     "TECH_STACK": "...",
     "MAIN_LANGUAGE": "...",
     "BUILD_COMMAND": "...",
+    "TYPECHECK_COMMAND": "...",
+    "LINT_COMMAND": "...",
+    "BROWSER_VERIFY_COMMAND": "...",
     "TEST_COMMAND": "...",
     "RUN_COMMAND": "...",
     "SOURCE_DIR": "...",
@@ -268,10 +308,18 @@ File entries for the manifest:
 { "target": ".claude/anti-patterns.md", "source": "anti-patterns.md.tmpl", "category": "config" }
 { "target": ".claude/agents/feature-implementation.md", "source": "agents/feature-implementation.md.tmpl", "category": "agent" }
 { "target": ".claude/agents/git-manager.md", "source": "agents/git-manager.md.tmpl", "category": "agent" }
+{ "target": ".claude/skills/grill-me.md", "source": "skills/grill-me.md.tmpl", "category": "skill" }
+{ "target": ".claude/skills/ubiquitous-language.md", "source": "skills/ubiquitous-language.md.tmpl", "category": "skill" }
+{ "target": ".claude/skills/improve-architecture.md", "source": "skills/improve-architecture.md.tmpl", "category": "skill" }
+{ "target": ".claude/skills/tdd.md", "source": "skills/tdd.md.tmpl", "category": "skill" }
 { "target": ".claude/skills/feature-start.md", "source": "skills/feature-start.md.tmpl", "category": "skill" }
 { "target": ".claude/skills/retro.md", "source": "skills/retro.md.tmpl", "category": "skill" }
 { "target": ".claude/skills/sync-bootstrap.md", "source": "skills/sync-bootstrap.md.tmpl", "category": "skill" }
 { "target": ".claude/skills/fabricate-beads-history.md", "source": "skills/fabricate-beads-history.md.tmpl", "category": "skill" }
+{ "target": ".codex/skills/grill-me.md", "source": "skills/grill-me.md.tmpl", "category": "skill" }
+{ "target": ".codex/skills/ubiquitous-language.md", "source": "skills/ubiquitous-language.md.tmpl", "category": "skill" }
+{ "target": ".codex/skills/improve-architecture.md", "source": "skills/improve-architecture.md.tmpl", "category": "skill" }
+{ "target": ".codex/skills/tdd.md", "source": "skills/tdd.md.tmpl", "category": "skill" }
 { "target": ".codex/skills/fabricate-beads-history.md", "source": "skills/fabricate-beads-history.md.tmpl", "category": "skill" }
 { "target": ".claude/workflows/feature-workflow.md", "source": "workflows/feature-workflow.md.tmpl", "category": "workflow" }
 { "target": ".beads/config.yaml", "source": "beads/config.yaml.tmpl", "category": "beads" }
@@ -298,10 +346,18 @@ Bootstrap complete! Generated files for Claude Code + Codex CLI:
   ✓ .claude/.bootstrap-manifest.json
   ✓ .claude/agents/feature-implementation.md
   ✓ .claude/agents/git-manager.md
+  ✓ .claude/skills/grill-me.md
+  ✓ .claude/skills/ubiquitous-language.md
+  ✓ .claude/skills/improve-architecture.md
+  ✓ .claude/skills/tdd.md
   ✓ .claude/skills/feature-start.md
   ✓ .claude/skills/retro.md
   ✓ .claude/skills/sync-bootstrap.md
   ✓ .claude/skills/fabricate-beads-history.md
+  ✓ .codex/skills/grill-me.md
+  ✓ .codex/skills/ubiquitous-language.md
+  ✓ .codex/skills/improve-architecture.md
+  ✓ .codex/skills/tdd.md
   ✓ .codex/skills/fabricate-beads-history.md
   ✓ .claude/workflows/feature-workflow.md
 
@@ -311,6 +367,7 @@ Beads:
   ✓ Hook path:     .githooks (configured via `git config core.hooksPath`)
 
 Next steps:
+  → Run /ubiquitous-language to establish the shared vocabulary
   → Run `bd ready --json` to see available work
   → Run /feature-start to begin your first feature (Claude Code)
   → After merging a feature, run /retro to capture learnings
@@ -326,6 +383,10 @@ Bootstrap complete! Generated files for Claude Code:
   ✓ .claude/.bootstrap-manifest.json
   ✓ .claude/agents/feature-implementation.md
   ✓ .claude/agents/git-manager.md
+  ✓ .claude/skills/grill-me.md
+  ✓ .claude/skills/ubiquitous-language.md
+  ✓ .claude/skills/improve-architecture.md
+  ✓ .claude/skills/tdd.md
   ✓ .claude/skills/feature-start.md
   ✓ .claude/skills/retro.md
   ✓ .claude/skills/sync-bootstrap.md
@@ -338,6 +399,7 @@ Beads:
   ✓ Hook path:     .githooks (configured via `git config core.hooksPath`)
 
 Next steps:
+  → Run /ubiquitous-language to establish the shared vocabulary
   → Run `bd ready --json` to see available work
   → Run /feature-start to begin your first feature
   → After merging a feature, run /retro to capture learnings
@@ -349,6 +411,10 @@ Next steps:
 Bootstrap complete! Generated files for Codex CLI (and other AGENTS.md-compatible tools):
 
   ✓ AGENTS.md
+  ✓ .codex/skills/grill-me.md
+  ✓ .codex/skills/ubiquitous-language.md
+  ✓ .codex/skills/improve-architecture.md
+  ✓ .codex/skills/tdd.md
   ✓ .codex/skills/fabricate-beads-history.md
   ✓ .claude/.bootstrap-manifest.json
 
