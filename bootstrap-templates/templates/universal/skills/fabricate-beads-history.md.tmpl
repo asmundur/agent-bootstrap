@@ -32,7 +32,7 @@ Carefully analyze the changes. What problem was this commit solving? What featur
 
 ### 2b: Formulate the Task Description
 
-Based on your analysis, construct a high-quality task title and description. It should represent the original intent of the task as if it was written *before* the work was started.
+Based on your analysis, construct a high-quality task title and description. You MUST put significant effort into the quality, depth, and accuracy of the task description. It should represent the original intent of the task as if it was thoughtfully written *before* the work was started, avoiding just lazily copying the commit message. The quality of this information is paramount.
 
 ### 2c: Create the Task
 
@@ -45,8 +45,8 @@ Capture the newly created task's ID from the JSON output.
 
 ### 2d: Backdate and Tag the Task (MANDATORY)
 
-You MUST modify the task so its timestamps match the git commit timestamp exactly. Also, tag the task as `retcon` to indicate it was retroactively generated.
-Use the `bd sql` command to directly modify the beads Dolt database:
+You MUST modify the task so its timestamps match the git commit timestamp exactly. This critically involves backdating BOTH the creation time AND the closing time. Also, tag the task as `retcon` to indicate it was retroactively generated.
+Use the `bd sql` command to directly modify the beads Dolt database to backdate the creation time:
 
 ```bash
 bd sql "UPDATE issues SET created_at = '<commit_timestamp>', updated_at = '<commit_timestamp>' WHERE id = '<task_id>';"
@@ -55,7 +55,7 @@ bd sql "UPDATE issues SET created_at = '<commit_timestamp>', updated_at = '<comm
 bd sql "INSERT INTO issue_labels (issue_id, label) VALUES ('<task_id>', 'retcon');"
 ```
 
-If the task should immediately be marked as 'done' because the commit represents its completion, you should close it (but remember to also backdate the `closed_at` timestamp if `bd close` alters the `updated_at` time):
+Since the commit represents the completion of the work, you MUST close the task immediately. Critically, after closing it, you MUST run a second SQL command to backdate the `closed_at` timestamp to match the commit timestamp exactly, because `bd close` will overwrite it with the current time:
 
 ```bash
 bd close <task_id> --reason "done" --json
