@@ -28,20 +28,27 @@ Any other stack can be configured manually during bootstrap.
 
 ## Getting Started
 
-### 1. Install the bootstrap skill
+### 1. Clone this repository
 
-Copy `.claude/skills/bootstrap/` from this repo into your project's `.claude/skills/` directory, or clone this repo and add it as a Claude Code plugin.
+Clone `agent-bootstrap` somewhere alongside your existing projects:
 
-### 2. Run the bootstrap skill in your project
-
-```
-/bootstrap
+```bash
+git clone https://github.com/steveyegge/agent-bootstrap.git ../agent-bootstrap
 ```
 
-Claude will:
+### 2. Run the bootstrapper in your project
+
+Navigate to your target project and run the bootstrap script:
+
+```bash
+cd ~/my-cool-app
+../agent-bootstrap/scripts/bootstrap.sh
+```
+
+The script will:
 1. Detect your tech stack and commands
-2. Show you the detected values for confirmation
-3. Generate all orchestration files into `.claude/`
+2. Prompt you to confirm or override the settings
+3. Generate all orchestration files into `.claude/`, `.beads/`, and `.githooks/`
 
 ### 3. Start developing features
 
