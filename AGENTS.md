@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-A tech-agnostic bootstrap for AI coding workflows that generates Claude Code and Codex-compatible agents, skills, workflows, and beads integration from universal templates.
+A tech-agnostic bootstrap for AI coding workflows that generates Claude Code, Codex, and Antigravity-compatible agents, skills, workflows, and beads integration from universal templates.
 
 - **Tech Stack:** Markdown + shell templates
 - **Language:** Markdown

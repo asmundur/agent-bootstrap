@@ -113,9 +113,9 @@ read -p "Architecture Pattern [Layered]: " ARCHITECTURE_PATTERN
 ARCHITECTURE_PATTERN="${ARCHITECTURE_PATTERN:-Layered}"
 
 echo ""
-echo "Tool Target options: both, claude-code, codex"
-read -p "Tool Target [both]: " TOOL_TARGET
-TOOL_TARGET="${TOOL_TARGET:-both}"
+echo "Tool Target options: all, claude-code, codex, antigravity"
+read -p "Tool Target [all]: " TOOL_TARGET
+TOOL_TARGET="${TOOL_TARGET:-all}"
 
 DEFAULT_BEADS_PREFIX=$(echo "${PROJECT_NAME}" | tr -cd '[:alnum:]' | tr '[:upper:]' '[:lower:]' | cut -c1-3)
 if [[ -z "$DEFAULT_BEADS_PREFIX" ]]; then DEFAULT_BEADS_PREFIX="prj"; fi
@@ -129,6 +129,7 @@ echo "Generating files..."
 
 mkdir -p .claude/agents .claude/architecture .claude/context .claude/plans .claude/skills .claude/workflows
 mkdir -p .codex/skills
+mkdir -p .antigravity/skills
 mkdir -p .beads
 mkdir -p .githooks
 
@@ -228,19 +229,24 @@ fi
 git config core.hooksPath .githooks || true
 
 # 7. TOOL_TARGET files
-if [[ "$TOOL_TARGET" == "both" || "$TOOL_TARGET" == "codex" ]]; then
+if [[ "$TOOL_TARGET" == "all" || "$TOOL_TARGET" == "codex" || "$TOOL_TARGET" == "antigravity" ]]; then
   copy_template "AGENTS.md.tmpl" "AGENTS.md"
   for skill in grill-me ubiquitous-language improve-architecture tdd fabricate-beads-history; do
-    copy_template "skills/${skill}.md.tmpl" ".codex/skills/${skill}.md"
+    if [[ "$TOOL_TARGET" == "all" || "$TOOL_TARGET" == "codex" ]]; then
+      copy_template "skills/${skill}.md.tmpl" ".codex/skills/${skill}.md"
+    fi
+    if [[ "$TOOL_TARGET" == "all" || "$TOOL_TARGET" == "antigravity" ]]; then
+      copy_template "skills/${skill}.md.tmpl" ".antigravity/skills/${skill}.md"
+    fi
   done
 fi
 
 # 8. Special handling for CLAUDE.md
-if [[ "$TOOL_TARGET" == "both" || "$TOOL_TARGET" == "claude-code" ]]; then
+if [[ "$TOOL_TARGET" == "all" || "$TOOL_TARGET" == "claude-code" ]]; then
   export P_OVERVIEW_SECTION=""
   export P_AGENTS_IMPORT=""
 
-  if [[ "$TOOL_TARGET" == "both" ]]; then
+  if [[ "$TOOL_TARGET" == "all" ]]; then
     P_AGENTS_IMPORT="@AGENTS.md\n\n"
   elif [[ "$TOOL_TARGET" == "claude-code" ]]; then
     P_OVERVIEW_SECTION="\n## Project Overview\n\n${P_PROJECT_DESCRIPTION}\n\n- **Tech Stack:** ${P_TECH_STACK}\n- **Language:** ${P_MAIN_LANGUAGE}\n- **Source Directory:** ${P_SOURCE_DIR}\n- **Architecture:** ${P_ARCHITECTURE_PATTERN}\n\n## Essential Commands\n\n\`\`\`bash\n# Build\n${P_BUILD_COMMAND}\n\n# Typecheck (optional)\n${P_TYPECHECK_COMMAND}\n\n# Lint (optional)\n${P_LINT_COMMAND}\n\n# Browser verification (optional)\n${P_BROWSER_VERIFY_COMMAND}\n\n# Test\n${P_TEST_COMMAND}\n\n# Run\n${P_RUN_COMMAND}\n\`\`\`\n\n## Architecture & Key Patterns\n\n${P_ARCHITECTURE_PATTERN}\n\nFollow existing patterns in \`${P_SOURCE_DIR}\` when implementing new features. Explore before implementing — find similar code and replicate its structure.\n\n## Durable Artifacts\n\n- **Feature specs:** \`.claude/plans/<feature-slug>.md\`\n- **Ubiquitous language:** \`.claude/context/ubiquitous-language.md\`\n- **Module map:** \`.claude/architecture/module-map.md\`\n\nThese files are created on first use by the generated skills.\n\n## Code Style Guidelines\n\n- Match the style of surrounding code\n- Functions should do one thing\n- Name things for what they are, not how they're implemented\n- Validate at system boundaries (user input, external APIs) — trust internal code\n- No dead code, no commented-out blocks, no TODO left behind after a feature\n- Tests are not optional\n\n## Task Tracking — Beads\n\nThis project uses [beads](https://github.com/steveyegge/beads) (\`bd\`) for task tracking. Issue prefix: \`${P_BEADS_PREFIX}\`.\n\nBefore starting new work:\n    bd ready --json           # list available tasks\n    bd update <id> --claim --json   # claim one\n\nCreating a task:\n    bd create --title \"...\" -p 2 --json\n\nClosing a task:\n    bd close <id> --reason \"done\" --json\n\n\`.beads/issues.jsonl\` is the git-tracked snapshot; the pre-commit hook refreshes it via \`bd export --no-memories\` and auto-stages changes, so task state travels with commits. Do not edit \`.beads/issues.jsonl\` by hand. Do not bypass the hook (\`--no-verify\`).\n"
@@ -313,6 +319,11 @@ cat <<EOF > .claude/.bootstrap-manifest.json
     { "target": ".codex/skills/improve-architecture.md", "source": "skills/improve-architecture.md.tmpl", "category": "skill" },
     { "target": ".codex/skills/tdd.md", "source": "skills/tdd.md.tmpl", "category": "skill" },
     { "target": ".codex/skills/fabricate-beads-history.md", "source": "skills/fabricate-beads-history.md.tmpl", "category": "skill" },
+    { "target": ".antigravity/skills/grill-me.md", "source": "skills/grill-me.md.tmpl", "category": "skill" },
+    { "target": ".antigravity/skills/ubiquitous-language.md", "source": "skills/ubiquitous-language.md.tmpl", "category": "skill" },
+    { "target": ".antigravity/skills/improve-architecture.md", "source": "skills/improve-architecture.md.tmpl", "category": "skill" },
+    { "target": ".antigravity/skills/tdd.md", "source": "skills/tdd.md.tmpl", "category": "skill" },
+    { "target": ".antigravity/skills/fabricate-beads-history.md", "source": "skills/fabricate-beads-history.md.tmpl", "category": "skill" },
     { "target": ".claude/workflows/feature-workflow.md", "source": "workflows/feature-workflow.md.tmpl", "category": "workflow" },
     { "target": ".beads/config.yaml", "source": "beads/config.yaml.tmpl", "category": "beads" },
     { "target": ".beads/clone-contract.json", "source": "beads/clone-contract.json.tmpl", "category": "beads" },

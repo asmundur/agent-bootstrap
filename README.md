@@ -108,11 +108,18 @@ After bootstrapping a project, the following files are created in `.claude/`:
     └── feature-workflow.md
 ```
 
-When bootstrapped in `both` or `codex` mode, the repo also gets:
+When bootstrapped in `all`, `codex`, or `antigravity` mode, the repo also gets:
 
 ```
 AGENTS.md                        # Tool-agnostic project contract
 .codex/
+└── skills/
+    ├── grill-me.md
+    ├── ubiquitous-language.md
+    ├── improve-architecture.md
+    ├── tdd.md
+    └── fabricate-beads-history.md
+.antigravity/
 └── skills/
     ├── grill-me.md
     ├── ubiquitous-language.md
