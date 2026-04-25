@@ -14,7 +14,7 @@ Before asking questions, load the durable project context when it exists:
 - `.claude/architecture/module-map.md`
 
 Then explore the codebase to understand:
-- Where similar features live in `bootstrap-templates/templates/universal`
+- Where similar features live in `src/`
 - Existing module boundaries, naming conventions, and abstractions to reuse
 - Test structure and the fastest feedback loops available for this feature
 
@@ -38,7 +38,7 @@ Create or update `.claude/plans/<feature-slug>.md` with:
   - Typecheck: `not configured`
   - Lint: `not configured`
   - Browser verification: `not configured`
-  - Tests: `bash scripts/smoke-test-bootstrap.sh`
+  - Tests: `not configured`
 - Implementation slices in execution order
 - Beads-ready task slices for any work that should be split across multiple units
 - Open questions or explicitly parked decisions
@@ -88,8 +88,8 @@ Then hand off to the Feature-Implementation agent with:
 - The implementation slices
 - The relevant file paths found during exploration
 - The commands:
-  - Build: `printf 'No build step for this template repo\n'`
+  - Build: `not configured`
   - Typecheck: `not configured`
   - Lint: `not configured`
   - Browser verification: `not configured`
-  - Test: `bash scripts/smoke-test-bootstrap.sh`
+  - Test: `not configured`

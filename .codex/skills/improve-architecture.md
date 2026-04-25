@@ -12,7 +12,7 @@ Use this skill when:
 
 ## Step 1 — Explore the Existing Structure
 
-Inspect `bootstrap-templates/templates/universal` and identify:
+Inspect `src/` and identify:
 - Clusters of related code that should probably live behind one boundary
 - Public interfaces that are too wide or inconsistent
 - Places where the implementation detail leaks into calling code

@@ -19,7 +19,7 @@ Before you ask questions, read these files when they exist:
 - `.claude/architecture/module-map.md`
 - Any existing `.claude/plans/<feature-slug>.md` for the same feature
 
-Then explore `bootstrap-templates/templates/universal` to understand the current implementation shape, similar features, and test boundaries.
+Then explore `src/` to understand the current implementation shape, similar features, and test boundaries.
 
 ## Step 2 — Interview Relentlessly
 

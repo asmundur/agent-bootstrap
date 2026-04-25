@@ -9,7 +9,7 @@ Create or update `.claude/context/ubiquitous-language.md` so planning and implem
 ## Step 1 — Gather Terminology
 
 Scan terminology from:
-- `bootstrap-templates/templates/universal`
+- `src/`
 - Tests
 - README and other docs
 - Task history in `.beads/issues.jsonl` when present

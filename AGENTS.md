@@ -2,24 +2,24 @@
 
 ## Project Overview
 
-A tech-agnostic bootstrap for AI coding workflows that generates Claude Code, Codex, and Antigravity-compatible agents, skills, workflows, and beads integration from universal templates.
 
-- **Tech Stack:** Markdown + shell templates
-- **Language:** Markdown
-- **Source Directory:** bootstrap-templates/templates/universal
-- **Architecture:** Template-driven bootstrap repo — universal markdown and shell templates plus a bootstrap skill that materializes project-specific `.claude/`, `.codex/`, and `AGENTS.md` files.
+
+- **Tech Stack:** Unknown
+- **Language:** Unknown
+- **Source Directory:** src/
+- **Architecture:** Layered
 
 ## Essential Commands
 
 ```bash
 # Build
-printf 'No build step for this template repo\n'
+not configured
 
 # Test
-bash scripts/smoke-test-bootstrap.sh
+not configured
 
 # Run
-printf 'This repo generates bootstrap templates; see README.md\n'
+not configured
 ```
 
 ## Feedback Loops
@@ -41,19 +41,67 @@ If a feedback-loop command is set to `not configured`, skip it. Otherwise, use t
 
 ## Task Tracking — Beads
 
-This project uses [beads](https://github.com/steveyegge/beads) (`bd`) for task tracking. Issue prefix: `agb`.
+This project uses [beads](https://github.com/steveyegge/beads) (`bd`) for task tracking. Issue prefix: `age`.
 
-Before starting new work:
-    bd ready --json           # list available tasks
-    bd update <id> --claim --json   # claim one
+### Mandatory Gate — One Task Per Body of Work
 
-Creating a task:
-    bd create --title "..." -p 2 --json
+**Before starting any body of work**, you must have a single claimed Beads task in hand. One task covers all the edits for that work.
+1. **Run `bd ready --json`** to inspect open tasks.
+2. **If a match exists**, claim it: `bd update <id> --claim --json`. Announce the claimed ID in your first response.
+3. **If no match exists**, create one first, then claim it. Do not start planning or editing until the task is created and claimed.
+4. **Announce the task ID** in your response before any plan or code (e.g., `Working on age-xxx — <title>`).
 
-Closing a task:
-    bd close <id> --reason "done" --json
+### Working with Tasks
+
+**Create new issues:**
+
+```bash
+bd create "Tight, concrete issue title" \
+  --type bug|feature|task \
+  --priority 1 \
+  --description "Current behavior, why it matters, scope boundaries, and the exact code/docs/tests paths involved." \
+  --design "Implementation touchpoints in src/... tests/... docs/... plus key constraints and non-goals." \
+  --acceptance "- Observable outcome 1\n- Observable outcome 2\n- Verification or fail-loud contract" \
+  --notes "Current evidence: direct probes, failing commands, relevant commits, and focused test nodes." \
+  --estimate 120 \
+  --json
+
+bd create "Concrete follow-up discovered while landing age-123" \
+  --type task \
+  --priority 1 \
+  --description "Specific follow-up needed after inspecting src/... and tests/... during age-123." \
+  --design "Call out the exact files, contracts, or parser/search/index surfaces likely to change." \
+  --acceptance "- Define the shipped contract\n- Add or adjust targeted regression coverage\n- Keep scope narrower than the parent issue" \
+  --notes "Discovered during age-123; include the exact probe, failure, or code-path evidence that surfaced it." \
+  --estimate 90 \
+  --deps discovered-from:age-123 \
+  --json
+```
+
+**Complete work:**
+```bash
+bd close <id> --reason "done" --json
+```
+
+### Git Integration & Clone Contract
 
 `.beads/issues.jsonl` is the git-tracked snapshot; the pre-commit hook refreshes it via `bd export --no-memories` and auto-stages changes, so task state travels with commits. Do not edit `.beads/issues.jsonl` by hand. Do not bypass the hook (`--no-verify`).
+
+- Fresh clones must bootstrap local Beads state from `.beads/issues.jsonl`:
+```bash
+bd init -p age --json
+bd import -i .beads/issues.jsonl --json
+bd status --json
+```
+- Machine consumers should read `.beads/clone-contract.json` instead of inferring readability from `.beads/metadata.json`.
+
+### Landing the Plane (Session Completion)
+
+**When ending a work session**, you MUST complete ALL steps below:
+1. **File issues for remaining work** - Create issues for anything that needs follow-up, using `--deps discovered-from:<id>`
+2. **Run quality gates** (if code changed) - Tests, linters, builds
+3. **Update issue status** - Close finished work, update in-progress items
+4. **Hand off** - Provide context for next session along with a fitting conventional commit message
 
 ## Durable Artifacts
 

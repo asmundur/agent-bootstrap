@@ -41,7 +41,7 @@ Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
 - No `.env` or credential files staged
 - No debug or temporary code in the diff
 - All staged changes are intentional
-- `bash scripts/smoke-test-bootstrap.sh` was confirmed passing by the Feature-Implementation agent
+- `not configured` was confirmed passing by the Feature-Implementation agent
 
 ## Commit Using HEREDOC
 

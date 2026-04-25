@@ -9,7 +9,7 @@ Hard constraints for all agents working on agent-bootstrap. These are non-negoti
 - **Skipping the planning stage** — Stage 1 exists to avoid wasted implementation effort. Never jump straight to code.
 - **Ignoring the glossary or module map when they exist** — Shared language and module boundaries are part of the source of truth for future changes.
 - **Allowing term drift** — If the code, docs, and conversations start using different names for the same concept, update the ubiquitous language before proceeding.
-- **Committing without running tests** — `bash scripts/smoke-test-bootstrap.sh` must pass before any commit. No exceptions.
+- **Committing without running tests** — `not configured` must pass before any commit. No exceptions.
 - **Creating commits without user review** — Stage 2.5 human review is mandatory. Never skip it.
 - **Force-pushing or hard-resetting** — These are destructive. Ask the user first.
 - **Bypassing hooks** — Never run `git commit --no-verify` — it skips the beads task handoff.
@@ -17,7 +17,7 @@ Hard constraints for all agents working on agent-bootstrap. These are non-negoti
 ## Code Quality Anti-Patterns
 
 - **Implementing beyond the acceptance criteria** — Do exactly what was agreed. Extra features introduce risk and aren't reviewed.
-- **Duplicating code instead of reusing** — Explore `bootstrap-templates/templates/universal` for existing implementations before writing new ones.
+- **Duplicating code instead of reusing** — Explore `src/` for existing implementations before writing new ones.
 - **Growing shallow modules by default** — Prefer a smaller number of deeper modules with simple interfaces over many thin layers with leaky boundaries.
 - **Changing module internals without checking the public interface** — Design the boundary first, then verify behavior through that boundary.
 - **Adding error handling for impossible cases** — Only validate at system boundaries. Don't guard against things that can't happen.

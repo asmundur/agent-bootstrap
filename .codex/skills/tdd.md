@@ -26,7 +26,7 @@ Use these commands when they are configured:
 - Typecheck: `not configured`
 - Lint: `not configured`
 - Browser verification: `not configured`
-- Tests: `bash scripts/smoke-test-bootstrap.sh`
+- Tests: `not configured`
 
 If a command is literally `not configured`, skip it. Otherwise, treat it as part of the development speed limit.
 

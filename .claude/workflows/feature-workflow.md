@@ -45,11 +45,11 @@ Goals:
 - Acceptance criteria
 - Implementation slices
 - Relevant file paths
-- Build command: `printf 'No build step for this template repo\n'`
+- Build command: `not configured`
 - Typecheck command: `not configured`
 - Lint command: `not configured`
 - Browser verification command: `not configured`
-- Test command: `bash scripts/smoke-test-bootstrap.sh`
+- Test command: `not configured`
 
 ---
 

@@ -18,7 +18,7 @@
 | Start a new feature | `/feature-start` → `.claude/workflows/feature-workflow.md` |
 | Review what worked after a feature | `/retro` → `.claude/skills/retro.md` |
 | Pull upstream template improvements | `/sync-bootstrap` → `.claude/skills/sync-bootstrap.md` |
-| Task tracking | Use `bd ready --json`, `bd update <id> --claim --json`, `bd close <id> --reason "done" --json` |
+| Task tracking | See `AGENTS.md` for mandatory gates and high-fidelity task creation commands |
 
 ## Durable Artifacts
 
@@ -31,10 +31,11 @@ Load the glossary and module map before planning or implementation when they exi
 ## Consultation Points
 
 Claude **must stop and get user approval** before:
-1. Transitioning from Stage 1 (planning) to Stage 2 (implementation)
-2. Transitioning from Stage 2 (implementation) to Stage 3 (commit)
-3. Propagating findings from retro to the bootstrap template
-4. Any destructive git operation
+1. Starting any body of work without a claimed Beads task (Mandatory Gate).
+2. Transitioning from Stage 1 (planning) to Stage 2 (implementation)
+3. Transitioning from Stage 2 (implementation) to Stage 3 (commit)
+4. Propagating findings from retro to the bootstrap template
+5. Any destructive git operation
 
 ## Anti-Patterns
 
