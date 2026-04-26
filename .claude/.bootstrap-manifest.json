@@ -1,6 +1,7 @@
 {
+  "generatedBy": "agent-bootstrap",
+  "templateVersion": "1.0.0",
   "generatedAt": "2026-04-25T02:13:37Z",
-  "pluginVersion": "1.0.0",
   "techStack": "Unknown",
   "toolTarget": "all",
   "templateSource": "bootstrap-templates/templates/universal",

@@ -173,11 +173,23 @@ replace_vars() {
   }' "$1"
 }
 
+GENERATED_TARGETS=()
+GENERATED_SOURCES=()
+GENERATED_CATEGORIES=()
+
+record_generated() {
+  GENERATED_TARGETS+=("$1")
+  GENERATED_SOURCES+=("$2")
+  GENERATED_CATEGORIES+=("$3")
+}
+
 copy_template() {
   local src="$1"
   local dst="$2"
+  local category="${3:-config}"
   if [[ -f "${TEMPLATE_DIR}/${src}" ]]; then
     replace_vars "${TEMPLATE_DIR}/${src}" > "${dst}"
+    record_generated "${dst}" "${src}" "${category}"
     echo "  ✓ ${dst}"
   fi
 }
@@ -185,44 +197,57 @@ copy_template() {
 copy_hook() {
   local src="$1"
   local dst="$2"
+  local category="${3:-hook}"
   if [[ -f "${TEMPLATE_DIR}/${src}" ]]; then
     cp "${TEMPLATE_DIR}/${src}" "${dst}"
     chmod +x "${dst}"
+    record_generated "${dst}" "${src}" "${category}"
+    echo "  ✓ ${dst}"
+  fi
+}
+
+copy_raw() {
+  local src="$1"
+  local dst="$2"
+  local category="${3:-config}"
+  if [[ -f "${TEMPLATE_DIR}/${src}" ]]; then
+    cp "${TEMPLATE_DIR}/${src}" "${dst}"
+    record_generated "${dst}" "${src}" "${category}"
     echo "  ✓ ${dst}"
   fi
 }
 
 # 1. Base files
-copy_template "anti-patterns.md.tmpl" ".claude/anti-patterns.md"
+copy_template "anti-patterns.md.tmpl" ".claude/anti-patterns.md" "config"
 
 # 2. Agents
-copy_template "agents/feature-implementation.md.tmpl" ".claude/agents/feature-implementation.md"
-copy_template "agents/git-manager.md.tmpl" ".claude/agents/git-manager.md"
+copy_template "agents/feature-implementation.md.tmpl" ".claude/agents/feature-implementation.md" "agent"
+copy_template "agents/git-manager.md.tmpl" ".claude/agents/git-manager.md" "agent"
 
 # 3. Skills
 for skill in grill-me ubiquitous-language improve-architecture tdd feature-start retro sync-bootstrap fabricate-beads-history; do
-  copy_template "skills/${skill}.md.tmpl" ".claude/skills/${skill}.md"
+  copy_template "skills/${skill}.md.tmpl" ".claude/skills/${skill}.md" "skill"
 done
 
 # 4. Workflows
-copy_template "workflows/feature-workflow.md.tmpl" ".claude/workflows/feature-workflow.md"
+copy_template "workflows/feature-workflow.md.tmpl" ".claude/workflows/feature-workflow.md" "workflow"
 
 # 5. Beads
 if [[ ! -f ".beads/config.yaml" ]]; then
-  copy_template "beads/config.yaml.tmpl" ".beads/config.yaml"
+  copy_template "beads/config.yaml.tmpl" ".beads/config.yaml" "beads"
 fi
 if [[ ! -f ".beads/clone-contract.json" ]]; then
-  copy_template "beads/clone-contract.json.tmpl" ".beads/clone-contract.json"
+  copy_template "beads/clone-contract.json.tmpl" ".beads/clone-contract.json" "beads"
 fi
 if [[ ! -f ".beads/.gitignore" ]]; then
-  cp "${TEMPLATE_DIR}/beads/gitignore" ".beads/.gitignore"
+  copy_raw "beads/gitignore" ".beads/.gitignore" "beads"
 fi
 
 # 6. Githooks
-copy_hook "githooks/_common.sh" ".githooks/_common.sh"
-copy_hook "githooks/beads-pre-commit.sh" ".githooks/beads-pre-commit.sh"
+copy_hook "githooks/_common.sh" ".githooks/_common.sh" "hook"
+copy_hook "githooks/beads-pre-commit.sh" ".githooks/beads-pre-commit.sh" "hook"
 if [[ ! -f ".githooks/pre-commit" ]]; then
-  copy_hook "githooks/pre-commit" ".githooks/pre-commit"
+  copy_hook "githooks/pre-commit" ".githooks/pre-commit" "hook"
 else
   echo "  ! .githooks/pre-commit already exists. Remember to source _common.sh and beads-pre-commit.sh manually."
 fi
@@ -230,13 +255,13 @@ git config core.hooksPath .githooks || true
 
 # 7. TOOL_TARGET files
 if [[ "$TOOL_TARGET" == "all" || "$TOOL_TARGET" == "codex" || "$TOOL_TARGET" == "antigravity" ]]; then
-  copy_template "AGENTS.md.tmpl" "AGENTS.md"
+  copy_template "AGENTS.md.tmpl" "AGENTS.md" "config"
   for skill in grill-me ubiquitous-language improve-architecture tdd fabricate-beads-history; do
     if [[ "$TOOL_TARGET" == "all" || "$TOOL_TARGET" == "codex" ]]; then
-      copy_template "skills/${skill}.md.tmpl" ".codex/skills/${skill}.md"
+      copy_template "skills/${skill}.md.tmpl" ".codex/skills/${skill}.md" "skill"
     fi
     if [[ "$TOOL_TARGET" == "all" || "$TOOL_TARGET" == "antigravity" ]]; then
-      copy_template "skills/${skill}.md.tmpl" ".antigravity/skills/${skill}.md"
+      copy_template "skills/${skill}.md.tmpl" ".antigravity/skills/${skill}.md" "skill"
     fi
   done
 fi
@@ -272,68 +297,47 @@ if [[ "$TOOL_TARGET" == "all" || "$TOOL_TARGET" == "claude-code" ]]; then
   }' .claude/CLAUDE.md.tmp > .claude/CLAUDE.md
   
   rm .claude/CLAUDE.md.tmp
+  record_generated ".claude/CLAUDE.md" "CLAUDE.md.tmpl" "config"
   echo "  ✓ .claude/CLAUDE.md"
 fi
 
 # 9. Generate Manifest
-cat <<EOF > .claude/.bootstrap-manifest.json
 {
-  "generatedAt": "${BOOTSTRAP_DATE}",
-  "pluginVersion": "1.0.0",
-  "techStack": "${TECH_STACK}",
-  "toolTarget": "${TOOL_TARGET}",
-  "templateSource": "bootstrap-templates/templates/universal",
-  "variables": {
-    "PROJECT_NAME": "${PROJECT_NAME}",
-    "PROJECT_DESCRIPTION": "${PROJECT_DESCRIPTION}",
-    "TECH_STACK": "${TECH_STACK}",
-    "MAIN_LANGUAGE": "${MAIN_LANGUAGE}",
-    "BUILD_COMMAND": "${BUILD_COMMAND}",
-    "TYPECHECK_COMMAND": "${TYPECHECK_COMMAND}",
-    "LINT_COMMAND": "${LINT_COMMAND}",
-    "BROWSER_VERIFY_COMMAND": "${BROWSER_VERIFY_COMMAND}",
-    "TEST_COMMAND": "${TEST_COMMAND}",
-    "RUN_COMMAND": "${RUN_COMMAND}",
-    "SOURCE_DIR": "${SOURCE_DIR}",
-    "ARCHITECTURE_PATTERN": "${ARCHITECTURE_PATTERN}",
-    "TOOL_TARGET": "${TOOL_TARGET}",
-    "BEADS_PREFIX": "${BEADS_PREFIX}",
-    "BOOTSTRAP_DATE": "${BOOTSTRAP_DATE}"
-  },
-  "files": [
-    { "target": "AGENTS.md", "source": "AGENTS.md.tmpl", "category": "config" },
-    { "target": ".claude/CLAUDE.md", "source": "CLAUDE.md.tmpl", "category": "config" },
-    { "target": ".claude/anti-patterns.md", "source": "anti-patterns.md.tmpl", "category": "config" },
-    { "target": ".claude/agents/feature-implementation.md", "source": "agents/feature-implementation.md.tmpl", "category": "agent" },
-    { "target": ".claude/agents/git-manager.md", "source": "agents/git-manager.md.tmpl", "category": "agent" },
-    { "target": ".claude/skills/grill-me.md", "source": "skills/grill-me.md.tmpl", "category": "skill" },
-    { "target": ".claude/skills/ubiquitous-language.md", "source": "skills/ubiquitous-language.md.tmpl", "category": "skill" },
-    { "target": ".claude/skills/improve-architecture.md", "source": "skills/improve-architecture.md.tmpl", "category": "skill" },
-    { "target": ".claude/skills/tdd.md", "source": "skills/tdd.md.tmpl", "category": "skill" },
-    { "target": ".claude/skills/feature-start.md", "source": "skills/feature-start.md.tmpl", "category": "skill" },
-    { "target": ".claude/skills/retro.md", "source": "skills/retro.md.tmpl", "category": "skill" },
-    { "target": ".claude/skills/sync-bootstrap.md", "source": "skills/sync-bootstrap.md.tmpl", "category": "skill" },
-    { "target": ".claude/skills/fabricate-beads-history.md", "source": "skills/fabricate-beads-history.md.tmpl", "category": "skill" },
-    { "target": ".codex/skills/grill-me.md", "source": "skills/grill-me.md.tmpl", "category": "skill" },
-    { "target": ".codex/skills/ubiquitous-language.md", "source": "skills/ubiquitous-language.md.tmpl", "category": "skill" },
-    { "target": ".codex/skills/improve-architecture.md", "source": "skills/improve-architecture.md.tmpl", "category": "skill" },
-    { "target": ".codex/skills/tdd.md", "source": "skills/tdd.md.tmpl", "category": "skill" },
-    { "target": ".codex/skills/fabricate-beads-history.md", "source": "skills/fabricate-beads-history.md.tmpl", "category": "skill" },
-    { "target": ".antigravity/skills/grill-me.md", "source": "skills/grill-me.md.tmpl", "category": "skill" },
-    { "target": ".antigravity/skills/ubiquitous-language.md", "source": "skills/ubiquitous-language.md.tmpl", "category": "skill" },
-    { "target": ".antigravity/skills/improve-architecture.md", "source": "skills/improve-architecture.md.tmpl", "category": "skill" },
-    { "target": ".antigravity/skills/tdd.md", "source": "skills/tdd.md.tmpl", "category": "skill" },
-    { "target": ".antigravity/skills/fabricate-beads-history.md", "source": "skills/fabricate-beads-history.md.tmpl", "category": "skill" },
-    { "target": ".claude/workflows/feature-workflow.md", "source": "workflows/feature-workflow.md.tmpl", "category": "workflow" },
-    { "target": ".beads/config.yaml", "source": "beads/config.yaml.tmpl", "category": "beads" },
-    { "target": ".beads/clone-contract.json", "source": "beads/clone-contract.json.tmpl", "category": "beads" },
-    { "target": ".beads/.gitignore", "source": "beads/gitignore", "category": "beads" },
-    { "target": ".githooks/_common.sh", "source": "githooks/_common.sh", "category": "hook" },
-    { "target": ".githooks/beads-pre-commit.sh", "source": "githooks/beads-pre-commit.sh", "category": "hook" },
-    { "target": ".githooks/pre-commit", "source": "githooks/pre-commit", "category": "hook" }
-  ]
-}
-EOF
+  printf '{\n'
+  printf '  "generatedBy": "agent-bootstrap",\n'
+  printf '  "templateVersion": "1.0.0",\n'
+  printf '  "generatedAt": "%s",\n' "${BOOTSTRAP_DATE}"
+  printf '  "techStack": "%s",\n' "${TECH_STACK}"
+  printf '  "toolTarget": "%s",\n' "${TOOL_TARGET}"
+  printf '  "templateSource": "bootstrap-templates/templates/universal",\n'
+  printf '  "variables": {\n'
+  printf '    "PROJECT_NAME": "%s",\n' "${PROJECT_NAME}"
+  printf '    "PROJECT_DESCRIPTION": "%s",\n' "${PROJECT_DESCRIPTION}"
+  printf '    "TECH_STACK": "%s",\n' "${TECH_STACK}"
+  printf '    "MAIN_LANGUAGE": "%s",\n' "${MAIN_LANGUAGE}"
+  printf '    "BUILD_COMMAND": "%s",\n' "${BUILD_COMMAND}"
+  printf '    "TYPECHECK_COMMAND": "%s",\n' "${TYPECHECK_COMMAND}"
+  printf '    "LINT_COMMAND": "%s",\n' "${LINT_COMMAND}"
+  printf '    "BROWSER_VERIFY_COMMAND": "%s",\n' "${BROWSER_VERIFY_COMMAND}"
+  printf '    "TEST_COMMAND": "%s",\n' "${TEST_COMMAND}"
+  printf '    "RUN_COMMAND": "%s",\n' "${RUN_COMMAND}"
+  printf '    "SOURCE_DIR": "%s",\n' "${SOURCE_DIR}"
+  printf '    "ARCHITECTURE_PATTERN": "%s",\n' "${ARCHITECTURE_PATTERN}"
+  printf '    "TOOL_TARGET": "%s",\n' "${TOOL_TARGET}"
+  printf '    "BEADS_PREFIX": "%s",\n' "${BEADS_PREFIX}"
+  printf '    "BOOTSTRAP_DATE": "%s"\n' "${BOOTSTRAP_DATE}"
+  printf '  },\n'
+  printf '  "files": [\n'
+  total="${#GENERATED_TARGETS[@]}"
+  for i in "${!GENERATED_TARGETS[@]}"; do
+    sep=","
+    if (( i == total - 1 )); then sep=""; fi
+    printf '    { "target": "%s", "source": "%s", "category": "%s" }%s\n' \
+      "${GENERATED_TARGETS[$i]}" "${GENERATED_SOURCES[$i]}" "${GENERATED_CATEGORIES[$i]}" "${sep}"
+  done
+  printf '  ]\n'
+  printf '}\n'
+} > .claude/.bootstrap-manifest.json
 echo "  ✓ .claude/.bootstrap-manifest.json"
 
 echo ""

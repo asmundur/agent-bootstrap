@@ -26,6 +26,12 @@ Inspired by [aproorg/bootstrap-demo](https://github.com/aproorg/bootstrap-demo),
 
 Any other stack can be configured manually during bootstrap.
 
+### Tech-Stack Irrelevance
+
+Agent-bootstrap is fundamentally about **agent programming**, not language-specific orchestration. Stack detection runs once at bootstrap to populate a small set of command placeholders — `BUILD_COMMAND`, `TYPECHECK_COMMAND`, `LINT_COMMAND`, `BROWSER_VERIFY_COMMAND`, `TEST_COMMAND`, `RUN_COMMAND` (see `scripts/bootstrap.sh`). That is the entire surface area where stack matters.
+
+Every skill, workflow, and agent file under `bootstrap-templates/templates/universal/` is stack-neutral. The glossary, module map, design-first feature workflow, and retrospective skill work the same whether you're in Go, Python, TypeScript, Rust, or anything else.
+
 ## Getting Started
 
 ### 1. Clone this repository
