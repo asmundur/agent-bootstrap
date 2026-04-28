@@ -271,10 +271,14 @@ fi
 
 BEADS_BOOTSTRAP_STATUS="not_attempted"
 if command -v bd >/dev/null 2>&1; then
-  if bd bootstrap --yes --json >/dev/null 2>&1; then
-    BEADS_BOOTSTRAP_STATUS="ok"
+  if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    if bd bootstrap --yes --json >/dev/null 2>&1 && bd status --json >/dev/null 2>&1; then
+      BEADS_BOOTSTRAP_STATUS="ok"
+    else
+      BEADS_BOOTSTRAP_STATUS="failed"
+    fi
   else
-    BEADS_BOOTSTRAP_STATUS="failed"
+    BEADS_BOOTSTRAP_STATUS="deferred"
   fi
 fi
 
@@ -377,6 +381,9 @@ if [[ "${BEADS_BOOTSTRAP_STATUS}" == "ok" ]]; then
 elif [[ "${BEADS_BOOTSTRAP_STATUS}" == "failed" ]]; then
   echo "Warning: scaffold files were written, but 'bd bootstrap --yes --json' did not complete successfully."
   echo "Verify Beads readiness with: bd status --json"
+elif [[ "${BEADS_BOOTSTRAP_STATUS}" == "deferred" ]]; then
+  echo "Note: target is not a git worktree yet, so Beads bootstrap was deferred."
+  echo "After git init or clone, verify Beads readiness with: bd bootstrap --yes --json"
 elif [[ "${BEADS_BOOTSTRAP_STATUS}" == "not_attempted" ]]; then
   echo "Note: 'bd' was not found in PATH, so Beads readiness was not verified."
 fi

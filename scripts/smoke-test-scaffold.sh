@@ -192,6 +192,67 @@ assert_state_accurate() {
   forbid_text "{{LINT_COMMAND}}" "${tmp}/.claude/anti-patterns.md"
 }
 
+assert_beads_partial_commit_guard() {
+  if ! command -v bd >/dev/null 2>&1; then
+    echo "bd not found; skipping Beads partial-commit smoke test"
+    return 0
+  fi
+
+  local tmp
+  local repo
+  tmp=$(mktemp -d -t scaffold-smoke-beads-XXXX)
+  repo="${tmp}/repo"
+
+  git clone -q "${repo_root}" "${repo}"
+  cp -R "${repo_root}/.githooks/." "${repo}/.githooks/"
+  git -C "${repo}" config user.name "Scaffold Smoke"
+  git -C "${repo}" config user.email "scaffold-smoke@example.com"
+  git -C "${repo}" config beads.role maintainer
+  git -C "${repo}" config core.hooksPath .githooks
+  chmod 700 "${repo}/.beads"
+
+  (cd "${repo}" && bd bootstrap --yes --json >/dev/null)
+  if ! git -C "${repo}" diff --quiet -- .githooks; then
+    git -C "${repo}" add .githooks
+    git -C "${repo}" commit -m "test: sync hook under test" >/dev/null
+  fi
+
+  (cd "${repo}" && bd create "Smoke test partial commit guard" \
+    --type task \
+    --priority 1 \
+    --description "Verify the scaffolded Beads hook blocks pathspec commits when the exported issue snapshot is involved, so the snapshot cannot be left behind in the main index." \
+    --design "Create a task, modify README.md, attempt a pathspec commit, require a fail-loud message, then retry with a full commit and verify a clean result." \
+    --acceptance "- Pathspec commit fails loudly\n- Full commit succeeds and includes .beads/issues.jsonl\n- No staged Beads snapshot remains afterward" \
+    --notes "Smoke-test coverage for scaffolded hook behavior with explicit pathspec commits." \
+    --estimate 5 \
+    --json >/dev/null)
+
+  printf 'smoke test\n' >> "${repo}/README.md"
+  git -C "${repo}" add README.md
+
+  local commit_err
+  commit_err=$(mktemp "${TMPDIR:-/tmp}/scaffold-pathspec-commit.XXXXXX")
+  if git -C "${repo}" commit README.md -m "test partial commit" > /dev/null 2> "${commit_err}"; then
+    echo "pathspec commit should have failed when Beads snapshot was involved in ${repo}" >&2
+    exit 1
+  fi
+  require_text "beads: .beads/issues.jsonl is involved in this commit" "${commit_err}"
+
+  git -C "${repo}" commit -m "test full commit" >/dev/null
+
+  if [[ -n "$(git -C "${repo}" status --short)" ]]; then
+    echo "full commit should not leave Beads changes behind in ${repo}" >&2
+    exit 1
+  fi
+
+  git -C "${repo}" show --stat --oneline HEAD -- .beads/issues.jsonl README.md > "${commit_err}.head"
+  require_text ".beads/issues.jsonl" "${commit_err}.head"
+  require_text "README.md" "${commit_err}.head"
+
+  rm -f "${commit_err}" "${commit_err}.head"
+  rm -rf "${tmp}"
+}
+
 tmp_all=$(mktemp -d -t scaffold-smoke-all-XXXX)
 trap 'rm -rf "${tmp_all:-}" "${tmp_cc:-}"' EXIT
 run_scaffold "${tmp_all}" "all"
@@ -201,5 +262,6 @@ assert_drift_fails_loud "${tmp_all}"
 tmp_cc=$(mktemp -d -t scaffold-smoke-cc-XXXX)
 run_scaffold "${tmp_cc}" "claude-code"
 assert_state_accurate "${tmp_cc}" "claude-code"
+assert_beads_partial_commit_guard
 
 echo "scaffold smoke test passed"
