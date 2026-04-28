@@ -1,0 +1,261 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TEMPLATE_DIR="$(cd "${SCRIPT_DIR}/../bootstrap-templates/templates/universal" && pwd)"
+
+if [[ ! -d "${TEMPLATE_DIR}" ]]; then
+  echo "Error: Cannot find templates at ${TEMPLATE_DIR}"
+  exit 1
+fi
+
+TARGET_DIR="${1:-.}"
+AGENT_HARNESS="${2:-${AGENT_HARNESS:-all}}"
+STATE_FILE=".agent-scaffold.json"
+LEGACY_STATE_FILE=".claude/.bootstrap-manifest.json"
+
+case "${AGENT_HARNESS}" in
+  all|claude-code|codex|antigravity) ;;
+  *)
+    echo "Error: AGENT_HARNESS must be one of: all, claude-code, codex, antigravity"
+    exit 1
+    ;;
+esac
+
+cd "${TARGET_DIR}"
+
+echo "Applying scaffold in $(pwd)..."
+
+mkdir -p .claude/agents .claude/architecture .claude/context .claude/plans .claude/skills .claude/workflows
+mkdir -p .codex/skills
+mkdir -p .antigravity/skills
+mkdir -p .beads
+mkdir -p .githooks
+
+existing_state_file=""
+if [[ -f "${STATE_FILE}" ]]; then
+  existing_state_file="${STATE_FILE}"
+elif [[ -f "${LEGACY_STATE_FILE}" ]]; then
+  existing_state_file="${LEGACY_STATE_FILE}"
+fi
+
+json_value() {
+  local key="$1"
+  local fallback="$2"
+  local value=""
+
+  if [[ -n "${existing_state_file}" ]]; then
+    value="$(jq -r --arg key "${key}" '.variables[$key] // empty' "${existing_state_file}")"
+  fi
+
+  if [[ -n "${value}" ]]; then
+    printf '%s\n' "${value}"
+  else
+    printf '%s\n' "${fallback}"
+  fi
+}
+
+PROJECT_NAME="$(json_value "PROJECT_NAME" "__PROJECT_NAME__")"
+PROJECT_DESCRIPTION="$(json_value "PROJECT_DESCRIPTION" "Project description pending /bootstrap.")"
+TECH_STACK="$(json_value "TECH_STACK" "Unknown")"
+MAIN_LANGUAGE="$(json_value "MAIN_LANGUAGE" "Unknown")"
+BUILD_COMMAND="$(json_value "BUILD_COMMAND" "not configured")"
+TYPECHECK_COMMAND="$(json_value "TYPECHECK_COMMAND" "not configured")"
+LINT_COMMAND="$(json_value "LINT_COMMAND" "not configured")"
+BROWSER_VERIFY_COMMAND="$(json_value "BROWSER_VERIFY_COMMAND" "not configured")"
+TEST_COMMAND="$(json_value "TEST_COMMAND" "not configured")"
+RUN_COMMAND="$(json_value "RUN_COMMAND" "not configured")"
+SOURCE_DIR="$(json_value "SOURCE_DIR" "not configured")"
+ARCHITECTURE_PATTERN="$(json_value "ARCHITECTURE_PATTERN" "not configured")"
+BEADS_PREFIX="$(json_value "BEADS_PREFIX" "prj")"
+BOOTSTRAP_DATE="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+
+export P_PROJECT_NAME="${PROJECT_NAME}"
+export P_PROJECT_DESCRIPTION="${PROJECT_DESCRIPTION}"
+export P_TECH_STACK="${TECH_STACK}"
+export P_MAIN_LANGUAGE="${MAIN_LANGUAGE}"
+export P_BUILD_COMMAND="${BUILD_COMMAND}"
+export P_TYPECHECK_COMMAND="${TYPECHECK_COMMAND}"
+export P_LINT_COMMAND="${LINT_COMMAND}"
+export P_BROWSER_VERIFY_COMMAND="${BROWSER_VERIFY_COMMAND}"
+export P_TEST_COMMAND="${TEST_COMMAND}"
+export P_RUN_COMMAND="${RUN_COMMAND}"
+export P_SOURCE_DIR="${SOURCE_DIR}"
+export P_ARCHITECTURE_PATTERN="${ARCHITECTURE_PATTERN}"
+export P_AGENT_HARNESS="${AGENT_HARNESS}"
+export P_BEADS_PREFIX="${BEADS_PREFIX}"
+export P_BOOTSTRAP_DATE="${BOOTSTRAP_DATE}"
+
+replace_vars() {
+  awk '
+  {
+    gsub(/\{\{PROJECT_NAME\}\}/, ENVIRON["P_PROJECT_NAME"])
+    gsub(/\{\{PROJECT_DESCRIPTION\}\}/, ENVIRON["P_PROJECT_DESCRIPTION"])
+    gsub(/\{\{TECH_STACK\}\}/, ENVIRON["P_TECH_STACK"])
+    gsub(/\{\{MAIN_LANGUAGE\}\}/, ENVIRON["P_MAIN_LANGUAGE"])
+    gsub(/\{\{BUILD_COMMAND\}\}/, ENVIRON["P_BUILD_COMMAND"])
+    gsub(/\{\{TYPECHECK_COMMAND\}\}/, ENVIRON["P_TYPECHECK_COMMAND"])
+    gsub(/\{\{LINT_COMMAND\}\}/, ENVIRON["P_LINT_COMMAND"])
+    gsub(/\{\{BROWSER_VERIFY_COMMAND\}\}/, ENVIRON["P_BROWSER_VERIFY_COMMAND"])
+    gsub(/\{\{TEST_COMMAND\}\}/, ENVIRON["P_TEST_COMMAND"])
+    gsub(/\{\{RUN_COMMAND\}\}/, ENVIRON["P_RUN_COMMAND"])
+    gsub(/\{\{SOURCE_DIR\}\}/, ENVIRON["P_SOURCE_DIR"])
+    gsub(/\{\{ARCHITECTURE_PATTERN\}\}/, ENVIRON["P_ARCHITECTURE_PATTERN"])
+    gsub(/\{\{AGENT_HARNESS\}\}/, ENVIRON["P_AGENT_HARNESS"])
+    gsub(/\{\{BEADS_PREFIX\}\}/, ENVIRON["P_BEADS_PREFIX"])
+    gsub(/\{\{BOOTSTRAP_DATE\}\}/, ENVIRON["P_BOOTSTRAP_DATE"])
+    print
+  }' "$1"
+}
+
+GENERATED_TARGETS=()
+GENERATED_SOURCES=()
+GENERATED_CATEGORIES=()
+
+record_generated() {
+  GENERATED_TARGETS+=("$1")
+  GENERATED_SOURCES+=("$2")
+  GENERATED_CATEGORIES+=("$3")
+}
+
+copy_template() {
+  local src="$1"
+  local dst="$2"
+  local category="${3:-config}"
+  replace_vars "${TEMPLATE_DIR}/${src}" > "${dst}"
+  record_generated "${dst}" "${src}" "${category}"
+  echo "  ✓ ${dst}"
+}
+
+copy_hook() {
+  local src="$1"
+  local dst="$2"
+  local category="${3:-hook}"
+  cp "${TEMPLATE_DIR}/${src}" "${dst}"
+  chmod +x "${dst}"
+  record_generated "${dst}" "${src}" "${category}"
+  echo "  ✓ ${dst}"
+}
+
+copy_raw() {
+  local src="$1"
+  local dst="$2"
+  local category="${3:-config}"
+  cp "${TEMPLATE_DIR}/${src}" "${dst}"
+  record_generated "${dst}" "${src}" "${category}"
+  echo "  ✓ ${dst}"
+}
+
+copy_template "anti-patterns.md.tmpl" ".claude/anti-patterns.md" "config"
+copy_template "agents/feature-implementation.md.tmpl" ".claude/agents/feature-implementation.md" "agent"
+copy_template "agents/git-manager.md.tmpl" ".claude/agents/git-manager.md" "agent"
+
+for skill in bootstrap grill-me ubiquitous-language improve-architecture tdd feature-start retro sync-bootstrap fabricate-beads-history; do
+  copy_template "skills/${skill}.md.tmpl" ".claude/skills/${skill}.md" "skill"
+done
+
+copy_template "workflows/feature-workflow.md.tmpl" ".claude/workflows/feature-workflow.md" "workflow"
+
+copy_template "beads/config.yaml.tmpl" ".beads/config.yaml" "beads"
+copy_template "beads/clone-contract.json.tmpl" ".beads/clone-contract.json" "beads"
+copy_raw "beads/gitignore" ".beads/.gitignore" "beads"
+
+copy_hook "githooks/_common.sh" ".githooks/_common.sh" "hook"
+copy_hook "githooks/beads-pre-commit.sh" ".githooks/beads-pre-commit.sh" "hook"
+copy_hook "githooks/pre-commit" ".githooks/pre-commit" "hook"
+if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  git config core.hooksPath .githooks >/dev/null 2>&1 || true
+fi
+
+if [[ "${AGENT_HARNESS}" == "all" || "${AGENT_HARNESS}" == "codex" || "${AGENT_HARNESS}" == "antigravity" ]]; then
+  copy_template "AGENTS.md.tmpl" "AGENTS.md" "config"
+  for skill in bootstrap grill-me ubiquitous-language improve-architecture tdd feature-start retro sync-bootstrap fabricate-beads-history; do
+    if [[ "${AGENT_HARNESS}" == "all" || "${AGENT_HARNESS}" == "codex" ]]; then
+      copy_template "skills/${skill}.md.tmpl" ".codex/skills/${skill}.md" "skill"
+    fi
+    if [[ "${AGENT_HARNESS}" == "all" || "${AGENT_HARNESS}" == "antigravity" ]]; then
+      copy_template "skills/${skill}.md.tmpl" ".antigravity/skills/${skill}.md" "skill"
+    fi
+  done
+fi
+
+if [[ "${AGENT_HARNESS}" == "all" || "${AGENT_HARNESS}" == "claude-code" ]]; then
+  export P_OVERVIEW_SECTION=""
+  export P_AGENTS_IMPORT=""
+
+  if [[ "${AGENT_HARNESS}" == "all" ]]; then
+    P_AGENTS_IMPORT="@AGENTS.md\n\n"
+  else
+    P_OVERVIEW_SECTION="\n## Project Overview\n\n${P_PROJECT_DESCRIPTION}\n\n- **Tech Stack:** ${P_TECH_STACK}\n- **Language:** ${P_MAIN_LANGUAGE}\n- **Source Directory:** ${P_SOURCE_DIR}\n- **Architecture:** ${P_ARCHITECTURE_PATTERN}\n\n## Essential Commands\n\n\`\`\`bash\n# Build\n${P_BUILD_COMMAND}\n\n# Typecheck (optional)\n${P_TYPECHECK_COMMAND}\n\n# Lint (optional)\n${P_LINT_COMMAND}\n\n# Browser verification (optional)\n${P_BROWSER_VERIFY_COMMAND}\n\n# Test\n${P_TEST_COMMAND}\n\n# Run\n${P_RUN_COMMAND}\n\`\`\`\n\n## Architecture & Key Patterns\n\n${P_ARCHITECTURE_PATTERN}\n\nRun \`/bootstrap\` after applying the scaffold so these values can be hydrated from the existing codebase.\n\n## Durable Artifacts\n\n- **Feature specs:** \`.claude/plans/<feature-slug>.md\`\n- **Ubiquitous language:** \`.claude/context/ubiquitous-language.md\`\n- **Module map:** \`.claude/architecture/module-map.md\`\n\nThese files are created or refreshed by the generated skills.\n\n## Code Style Guidelines\n\n- Match the style of surrounding code\n- Functions should do one thing\n- Name things for what they are, not how they're implemented\n- Validate at system boundaries (user input, external APIs) — trust internal code\n- No dead code, no commented-out blocks, no TODO left behind after a feature\n- Tests are not optional\n\n## Task Tracking — Beads\n\nThis project uses [beads](https://github.com/steveyegge/beads) (\`bd\`) for task tracking. Issue prefix: \`${P_BEADS_PREFIX}\`.\n\nBefore starting new work:\n    bd ready --json\n    bd update <id> --claim --json\n\nCreating a task:\n    bd create --title \"...\" -p 2 --json\n\nClosing a task:\n    bd close <id> --reason \"done\" --json\n\n\`.beads/issues.jsonl\` is the git-tracked snapshot; the pre-commit hook refreshes it via \`bd export --no-memories\` and auto-stages changes, so task state travels with commits. Do not edit \`.beads/issues.jsonl\` by hand. Do not bypass the hook (\`--no-verify\`).\n"
+  fi
+
+  replace_vars "${TEMPLATE_DIR}/CLAUDE.md.tmpl" > .claude/CLAUDE.md.tmp
+
+  awk '
+  {
+    if (index($0, "{{AGENTS_MD_IMPORT}}") > 0) {
+      if (ENVIRON["P_AGENTS_IMPORT"] != "") {
+        printf "@AGENTS.md\n\n"
+      }
+    } else if (index($0, "{{PROJECT_OVERVIEW_SECTION}}") > 0) {
+      if (ENVIRON["P_OVERVIEW_SECTION"] != "") {
+        print ENVIRON["P_OVERVIEW_SECTION"]
+      }
+    } else {
+      print $0
+    }
+  }' .claude/CLAUDE.md.tmp > .claude/CLAUDE.md
+
+  rm .claude/CLAUDE.md.tmp
+  record_generated ".claude/CLAUDE.md" "CLAUDE.md.tmpl" "config"
+  echo "  ✓ .claude/CLAUDE.md"
+fi
+
+{
+  printf '{\n'
+  printf '  "generatedBy": "agent-bootstrap",\n'
+  printf '  "templateVersion": "1.1.0",\n'
+  printf '  "generatedAt": "%s",\n' "${BOOTSTRAP_DATE}"
+  printf '  "agentHarness": "%s",\n' "${AGENT_HARNESS}"
+  printf '  "templateSource": "bootstrap-templates/templates/universal",\n'
+  printf '  "variables": {\n'
+  printf '    "PROJECT_NAME": "%s",\n' "${PROJECT_NAME}"
+  printf '    "PROJECT_DESCRIPTION": "%s",\n' "${PROJECT_DESCRIPTION}"
+  printf '    "TECH_STACK": "%s",\n' "${TECH_STACK}"
+  printf '    "MAIN_LANGUAGE": "%s",\n' "${MAIN_LANGUAGE}"
+  printf '    "BUILD_COMMAND": "%s",\n' "${BUILD_COMMAND}"
+  printf '    "TYPECHECK_COMMAND": "%s",\n' "${TYPECHECK_COMMAND}"
+  printf '    "LINT_COMMAND": "%s",\n' "${LINT_COMMAND}"
+  printf '    "BROWSER_VERIFY_COMMAND": "%s",\n' "${BROWSER_VERIFY_COMMAND}"
+  printf '    "TEST_COMMAND": "%s",\n' "${TEST_COMMAND}"
+  printf '    "RUN_COMMAND": "%s",\n' "${RUN_COMMAND}"
+  printf '    "SOURCE_DIR": "%s",\n' "${SOURCE_DIR}"
+  printf '    "ARCHITECTURE_PATTERN": "%s",\n' "${ARCHITECTURE_PATTERN}"
+  printf '    "AGENT_HARNESS": "%s",\n' "${AGENT_HARNESS}"
+  printf '    "BEADS_PREFIX": "%s",\n' "${BEADS_PREFIX}"
+  printf '    "BOOTSTRAP_DATE": "%s"\n' "${BOOTSTRAP_DATE}"
+  printf '  },\n'
+  printf '  "files": [\n'
+
+  count="${#GENERATED_TARGETS[@]}"
+  for ((i=0; i<count; i++)); do
+    comma=","
+    if [[ $i -eq $((count - 1)) ]]; then
+      comma=""
+    fi
+    printf '    { "target": "%s", "source": "%s", "category": "%s" }%s\n' \
+      "${GENERATED_TARGETS[$i]}" "${GENERATED_SOURCES[$i]}" "${GENERATED_CATEGORIES[$i]}" "${comma}"
+  done
+
+  printf '  ]\n'
+  printf '}\n'
+} > "${STATE_FILE}"
+echo "  ✓ ${STATE_FILE}"
+
+if [[ -f "${LEGACY_STATE_FILE}" ]]; then
+  rm -f "${LEGACY_STATE_FILE}"
+fi
+
+echo ""
+echo "Scaffold applied."
+echo "Next step: run /bootstrap in your agent harness to hydrate project-specific values from the codebase."

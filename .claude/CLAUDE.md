@@ -11,6 +11,7 @@
 
 | User Intent | Skill / Workflow |
 |---|---|
+| Hydrate scaffold values from the codebase | `/bootstrap` → `.claude/skills/bootstrap.md` |
 | Reach shared design before planning | `/grill-me` → `.claude/skills/grill-me.md` |
 | Build or refresh the project glossary | `/ubiquitous-language` → `.claude/skills/ubiquitous-language.md` |
 | Propose better module boundaries | `/improve-architecture` → `.claude/skills/improve-architecture.md` |
@@ -28,7 +29,7 @@
 
 Load the glossary and module map before planning or implementation when they exist.
 
-## Consultation Points
+## Mandatory Gates
 
 Claude **must stop and get user approval** before:
 1. Starting any body of work without a claimed Beads task (Mandatory Gate).

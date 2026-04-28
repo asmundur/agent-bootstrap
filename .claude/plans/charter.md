@@ -31,15 +31,15 @@ Agent-bootstrap is done when:
 ## Key Design Decisions
 
 ### 1. Tech Stack Irrelevance
-Agent-bootstrap is fundamentally about **agent programming**, not language-specific orchestration. Tech stack detection happens during bootstrap, but the workflows and skills themselves are agent-agnostic. The glossary, module map, and design-first approach work the same whether you're in Go, Python, TypeScript, or Rust.
+Agent-bootstrap is fundamentally about **agent programming**, not language-specific orchestration. The scaffold command applies generic files and state, while the `/bootstrap` skill discovers project-specific context from the target repository. The workflows and skills themselves are agent-agnostic. The glossary, module map, and design-first approach work the same whether you're in Go, Python, TypeScript, or Rust.
 
 ### 2. "Set and Forget It" (for now)
 Projects that use agent-bootstrap bootstrap once and work independently. Upstream changes to the template don't propagate automatically. This simplifies things early.
 
 **Future improvement**: More dynamic, self-contained processes that handle template evolution gracefully.
 
-### 3. Manifest Tracking
-All generated files are tracked in `.bootstrap-manifest.json`. This serves two purposes:
+### 3. Scaffold State Tracking
+All generated scaffold-managed files are tracked in `.agent-scaffold.json`. This serves two purposes:
 - Enables cleanup if the project later wants to remove agent-bootstrap
 - Provides a foundation for future dynamic updates without overwriting local edits
 
@@ -61,7 +61,7 @@ The `/retro` skill will automatically propose changes back to `bootstrap-templat
 ### Manifest File Format (Option A)
 **Decision**: Simple, readable format without checksums (for now).
 
-`.bootstrap-manifest.json` tracks all generated/modified files:
+`.agent-scaffold.json` tracks all generated/modified scaffold-managed files:
 ```json
 {
   "generatedBy": "agent-bootstrap",
@@ -83,7 +83,7 @@ If we later need change detection, we can add checksums. For now, keep it simple
 - All core skills (grill-me, feature-start, retro, etc.) work in any harness
 - `.antigravity/`, `.codex/` directories are optional variants only, not required
 - No harness-specific logic in core workflows
-- A project bootstrapped with agent-bootstrap works equally in any harness
+- A project scaffolded with agent-bootstrap works equally in any harness
 
 ## Open Questions / Parked Decisions
 
@@ -99,7 +99,7 @@ If we later need change detection, we can add checksums. For now, keep it simple
 - **Agent harness**: The system that runs Claude (Claude Code, Codex, Antigravity, etc.)
 - **Bootstrap**: The act of setting up a project with agent-bootstrap orchestration
 - **Template**: The generic workflow setup in `bootstrap-templates/` that gets copied into projects
-- **Manifest**: `.bootstrap-manifest.json` tracking all generated/modified files
+- **Scaffold state**: `.agent-scaffold.json` tracking all generated/modified scaffold-managed files
 - **Skill**: A reusable workflow document (e.g., `/grill-me`, `/retro`) that guides Claude through a structured process
 
 ## Affected Modules
@@ -126,10 +126,10 @@ The propagation path from one project's learnings back into the template, and fr
 
 1. **Capture** — `/retro` (`bootstrap-templates/templates/universal/skills/retro.md.tmpl`) runs after a feature lands. It analyzes the diff, asks the user what worked and what didn't, and proposes concrete edits against `bootstrap-templates/`.
 2. **Gate** — Proposals land as a regular commit in the agent-bootstrap repo. The user reviews and approves/rejects via git. Version control is the safety gate; nothing auto-pushes upstream (per "Feedback Loop Propagation" decision above).
-3. **Distribute** — Other projects pull improvements via `/sync-bootstrap`. The skill reads `templateSource` from `.claude/.bootstrap-manifest.json`, compares the project's existing files (also listed in the manifest) against the upstream template, and presents an import menu.
-4. **Cursor** — `templateVersion` in the manifest is the version of the template that bootstrapped this project. `/sync-bootstrap` uses it to reason about what's new since the last sync.
+3. **Distribute** — Other projects pull improvements via `/sync-bootstrap`. The skill reads `templateSource` from `.agent-scaffold.json`, compares the project's existing files (also listed in the scaffold state) against the upstream template, and presents an import menu.
+4. **Cursor** — `templateVersion` in the scaffold state is the version of the template that last scaffolded this project. `/sync-bootstrap` uses it to reason about what's new since the last sync.
 
-`.claude/bootstrap-manifest-spec.md` documents the manifest format that ties parts 3 and 4 together.
+`.claude/scaffold-state-spec.md` documents the scaffold-state format that ties parts 3 and 4 together.
 
 ## Feedback Loops (operational)
 

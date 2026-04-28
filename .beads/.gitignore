@@ -1,6 +1,6 @@
 # Dolt database (managed by Dolt, not git)
 dolt/
-embeddeddolt/
+dolt-access.lock
 
 # Runtime files
 bd.sock
@@ -8,6 +8,9 @@ bd.sock.startlock
 sync-state.json
 last-touched
 .exclusive-lock
+README.md
+metadata.json
+hooks/
 
 # Daemon runtime (lock, log, pid)
 daemon.*
@@ -69,5 +72,5 @@ db.sqlite
 bd.db
 # NOTE: Do NOT add negation patterns here.
 # They would override fork protection in .git/info/exclude.
-# Config files (metadata.json, config.yaml) are tracked by git by default
+# Tracked files such as issues.jsonl and config.yaml are not ignored here
 # since no pattern above ignores them.

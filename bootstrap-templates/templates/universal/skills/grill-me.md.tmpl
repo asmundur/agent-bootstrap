@@ -15,6 +15,7 @@ Use this skill when:
 ## Step 1 — Load the Existing Design Context
 
 Before you ask questions, read these files when they exist:
+- `.agent-scaffold.json`
 - `.claude/context/ubiquitous-language.md`
 - `.claude/architecture/module-map.md`
 - Any existing `.claude/plans/<feature-slug>.md` for the same feature

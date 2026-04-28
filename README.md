@@ -1,12 +1,13 @@
 # agent-bootstrap
 
-A tech-agnostic Claude Code workflow orchestration system. Bootstrap any project with automated agents, skills, and workflows that guide feature development and improve over time.
+A tech-agnostic workflow orchestration system. Apply a reusable scaffold to any project, then hydrate it with agents, skills, and workflows that guide feature development and improve over time.
 
 Inspired by [aproorg/bootstrap-demo](https://github.com/aproorg/bootstrap-demo), but built to work across any language or tech stack.
 
 ## What It Does
 
-- **Bootstrap** any project: scans your codebase, detects tech stack and commands, and generates a complete Claude Code orchestration setup
+- **Scaffold** any project: apply a complete agent workflow scaffold non-interactively
+- **Hydrate the scaffold**: run `/bootstrap` so the agent reads the existing codebase and fills in project-specific values
 - **Design-first feature workflow**: `/feature-start` begins by building a shared design concept, writes a reusable feature spec, and hands off a concrete implementation contract
 - **Shared language + architecture maps**: generate a ubiquitous-language glossary and a module map so planning and implementation use the same terms and boundaries
 - **Feedback-loop execution**: TDD-oriented implementation guidance with optional typecheck, lint, and browser verification commands alongside tests
@@ -24,11 +25,11 @@ Inspired by [aproorg/bootstrap-demo](https://github.com/aproorg/bootstrap-demo),
 | Python | `requirements.txt` / `pyproject.toml` | `pytest`, `python -m` |
 | Java / Kotlin | `pom.xml` / `build.gradle` | `mvn` / `gradle` |
 
-Any other stack can be configured manually during bootstrap.
+Any other stack can be configured manually during scaffold hydration.
 
 ### Tech-Stack Irrelevance
 
-Agent-bootstrap is fundamentally about **agent programming**, not language-specific orchestration. Stack detection runs once at bootstrap to populate a small set of command placeholders — `BUILD_COMMAND`, `TYPECHECK_COMMAND`, `LINT_COMMAND`, `BROWSER_VERIFY_COMMAND`, `TEST_COMMAND`, `RUN_COMMAND` (see `scripts/bootstrap.sh`). That is the entire surface area where stack matters.
+Agent-bootstrap is fundamentally about **agent programming**, not language-specific orchestration. The scaffold command applies generic files and state. The `/bootstrap` skill then inspects the target repository and populates a small set of command and project placeholders — `BUILD_COMMAND`, `TYPECHECK_COMMAND`, `LINT_COMMAND`, `BROWSER_VERIFY_COMMAND`, `TEST_COMMAND`, `RUN_COMMAND`, and related project metadata. That is the entire surface area where stack matters.
 
 Every skill, workflow, and agent file under `bootstrap-templates/templates/universal/` is stack-neutral. The glossary, module map, design-first feature workflow, and retrospective skill work the same whether you're in Go, Python, TypeScript, Rust, or anything else.
 
@@ -42,21 +43,35 @@ Clone `agent-bootstrap` somewhere alongside your existing projects:
 git clone https://github.com/steveyegge/agent-bootstrap.git ../agent-bootstrap
 ```
 
-### 2. Run the bootstrapper in your project
+### 2. Apply the scaffold in your project
 
-Navigate to your target project and run the bootstrap script:
+Navigate to your target project and run the scaffold command:
 
 ```bash
 cd ~/my-cool-app
-../agent-bootstrap/scripts/bootstrap.sh
+../agent-bootstrap/scripts/scaffold.sh
 ```
 
-The script will:
-1. Detect your tech stack and commands
-2. Prompt you to confirm or override the settings
-3. Generate all orchestration files into `.claude/`, `.beads/`, and `.githooks/`
+The command will:
+1. Generate the scaffold files into `.claude/`, `.beads/`, `.githooks/`, and harness mirrors
+2. Write `.agent-scaffold.json` with the scaffold inventory and placeholder/default variables
+3. Refresh the scaffold later when you re-run it
 
-### 3. Start developing features
+### 3. Hydrate the scaffold from the existing codebase
+
+Run:
+
+```
+/bootstrap
+```
+
+The skill will:
+1. Read the existing repository instead of interrogating you for basic project facts
+2. Fill in scaffold values from code, config, tests, and docs
+3. Refresh scaffolded docs/config that use those values
+4. Ask you only about unresolved, high-impact ambiguity
+
+### 4. Start developing features
 
 ```
 /feature-start
@@ -71,13 +86,13 @@ Useful companion skills:
 /tdd
 ```
 
-### 4. After a feature is merged, run a retrospective
+### 5. After a feature is merged, run a retrospective
 
 ```
 /retro
 ```
 
-### 5. Pull improvements from the upstream template
+### 6. Pull improvements from the upstream template
 
 ```
 /sync-bootstrap
@@ -85,13 +100,16 @@ Useful companion skills:
 
 ## Generated File Structure
 
-After bootstrapping a project, the following files are created in `.claude/`:
+After applying the scaffold, the following files are created at the project root and under `.claude/`:
+
+```
+.agent-scaffold.json            # Tracks generated files + scaffold variables
+```
 
 ```
 .claude/
 ├── CLAUDE.md                    # Project config and workflow routing
 ├── anti-patterns.md             # Hard constraints agents must follow
-├── .bootstrap-manifest.json     # Tracks generated files + template variables
 ├── agents/
 │   ├── feature-implementation.md
 │   └── git-manager.md
@@ -102,6 +120,7 @@ After bootstrapping a project, the following files are created in `.claude/`:
 ├── plans/                       # Created on first use
 │   └── <feature-slug>.md
 ├── skills/
+│   ├── bootstrap.md
 │   ├── grill-me.md
 │   ├── ubiquitous-language.md
 │   ├── improve-architecture.md
@@ -114,23 +133,31 @@ After bootstrapping a project, the following files are created in `.claude/`:
     └── feature-workflow.md
 ```
 
-When bootstrapped in `all`, `codex`, or `antigravity` mode, the repo also gets:
+When scaffolded in `all`, `codex`, or `antigravity` mode, the repo also gets:
 
 ```
 AGENTS.md                        # Tool-agnostic project contract
 .codex/
 └── skills/
+    ├── bootstrap.md
     ├── grill-me.md
+    ├── feature-start.md
     ├── ubiquitous-language.md
     ├── improve-architecture.md
     ├── tdd.md
+    ├── retro.md
+    ├── sync-bootstrap.md
     └── fabricate-beads-history.md
 .antigravity/
 └── skills/
+    ├── bootstrap.md
     ├── grill-me.md
+    ├── feature-start.md
     ├── ubiquitous-language.md
     ├── improve-architecture.md
     ├── tdd.md
+    ├── retro.md
+    ├── sync-bootstrap.md
     └── fabricate-beads-history.md
 ```
 
@@ -142,5 +169,5 @@ Templates live in `bootstrap-templates/templates/universal/`. All templates use 
 
 1. You run `/retro` after a feature — it analyzes what worked and what didn't
 2. Generalizable findings get propagated back into `bootstrap-templates/`
-3. Other projects using this bootstrap run `/sync-bootstrap` to pull those improvements
+3. Other projects using this scaffold re-apply it and use `/sync-bootstrap` where the reverse-direction workflow is needed
 4. The system gets better with every project

@@ -12,6 +12,9 @@
 ## Essential Commands
 
 ```bash
+# Apply or refresh scaffold
+scripts/scaffold.sh
+
 # Build
 {{BUILD_COMMAND}}
 
@@ -29,6 +32,10 @@
 - **Browser verification:** `{{BROWSER_VERIFY_COMMAND}}`
 
 If a feedback-loop command is set to `not configured`, skip it. Otherwise, use the fastest applicable loop before moving on to larger changes.
+
+## Scaffold Hydration
+
+After applying the scaffold, run `/bootstrap`. That skill inspects the existing repository, derives project-specific values, updates `.agent-scaffold.json`, and refreshes scaffolded docs/config where those values are used.
 
 ## Code Style Guidelines
 
