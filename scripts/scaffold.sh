@@ -88,22 +88,27 @@ export P_BOOTSTRAP_DATE="${BOOTSTRAP_DATE}"
 
 replace_vars() {
   awk '
+  function esc(s) {
+    gsub(/\\/, "\\\\", s)
+    gsub(/&/, "\\\\&", s)
+    return s
+  }
   {
-    gsub(/\{\{PROJECT_NAME\}\}/, ENVIRON["P_PROJECT_NAME"])
-    gsub(/\{\{PROJECT_DESCRIPTION\}\}/, ENVIRON["P_PROJECT_DESCRIPTION"])
-    gsub(/\{\{TECH_STACK\}\}/, ENVIRON["P_TECH_STACK"])
-    gsub(/\{\{MAIN_LANGUAGE\}\}/, ENVIRON["P_MAIN_LANGUAGE"])
-    gsub(/\{\{BUILD_COMMAND\}\}/, ENVIRON["P_BUILD_COMMAND"])
-    gsub(/\{\{TYPECHECK_COMMAND\}\}/, ENVIRON["P_TYPECHECK_COMMAND"])
-    gsub(/\{\{LINT_COMMAND\}\}/, ENVIRON["P_LINT_COMMAND"])
-    gsub(/\{\{BROWSER_VERIFY_COMMAND\}\}/, ENVIRON["P_BROWSER_VERIFY_COMMAND"])
-    gsub(/\{\{TEST_COMMAND\}\}/, ENVIRON["P_TEST_COMMAND"])
-    gsub(/\{\{RUN_COMMAND\}\}/, ENVIRON["P_RUN_COMMAND"])
-    gsub(/\{\{SOURCE_DIR\}\}/, ENVIRON["P_SOURCE_DIR"])
-    gsub(/\{\{ARCHITECTURE_PATTERN\}\}/, ENVIRON["P_ARCHITECTURE_PATTERN"])
-    gsub(/\{\{AGENT_HARNESS\}\}/, ENVIRON["P_AGENT_HARNESS"])
-    gsub(/\{\{BEADS_PREFIX\}\}/, ENVIRON["P_BEADS_PREFIX"])
-    gsub(/\{\{BOOTSTRAP_DATE\}\}/, ENVIRON["P_BOOTSTRAP_DATE"])
+    gsub(/\{\{PROJECT_NAME\}\}/, esc(ENVIRON["P_PROJECT_NAME"]))
+    gsub(/\{\{PROJECT_DESCRIPTION\}\}/, esc(ENVIRON["P_PROJECT_DESCRIPTION"]))
+    gsub(/\{\{TECH_STACK\}\}/, esc(ENVIRON["P_TECH_STACK"]))
+    gsub(/\{\{MAIN_LANGUAGE\}\}/, esc(ENVIRON["P_MAIN_LANGUAGE"]))
+    gsub(/\{\{BUILD_COMMAND\}\}/, esc(ENVIRON["P_BUILD_COMMAND"]))
+    gsub(/\{\{TYPECHECK_COMMAND\}\}/, esc(ENVIRON["P_TYPECHECK_COMMAND"]))
+    gsub(/\{\{LINT_COMMAND\}\}/, esc(ENVIRON["P_LINT_COMMAND"]))
+    gsub(/\{\{BROWSER_VERIFY_COMMAND\}\}/, esc(ENVIRON["P_BROWSER_VERIFY_COMMAND"]))
+    gsub(/\{\{TEST_COMMAND\}\}/, esc(ENVIRON["P_TEST_COMMAND"]))
+    gsub(/\{\{RUN_COMMAND\}\}/, esc(ENVIRON["P_RUN_COMMAND"]))
+    gsub(/\{\{SOURCE_DIR\}\}/, esc(ENVIRON["P_SOURCE_DIR"]))
+    gsub(/\{\{ARCHITECTURE_PATTERN\}\}/, esc(ENVIRON["P_ARCHITECTURE_PATTERN"]))
+    gsub(/\{\{AGENT_HARNESS\}\}/, esc(ENVIRON["P_AGENT_HARNESS"]))
+    gsub(/\{\{BEADS_PREFIX\}\}/, esc(ENVIRON["P_BEADS_PREFIX"]))
+    gsub(/\{\{BOOTSTRAP_DATE\}\}/, esc(ENVIRON["P_BOOTSTRAP_DATE"]))
     print
   }' "$1"
 }
@@ -165,6 +170,15 @@ copy_hook "githooks/beads-pre-commit.sh" ".githooks/beads-pre-commit.sh" "hook"
 copy_hook "githooks/pre-commit" ".githooks/pre-commit" "hook"
 if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   git config core.hooksPath .githooks >/dev/null 2>&1 || true
+fi
+
+BEADS_BOOTSTRAP_STATUS="not_attempted"
+if command -v bd >/dev/null 2>&1; then
+  if bd bootstrap --yes --json >/dev/null 2>&1; then
+    BEADS_BOOTSTRAP_STATUS="ok"
+  else
+    BEADS_BOOTSTRAP_STATUS="failed"
+  fi
 fi
 
 if [[ "${AGENT_HARNESS}" == "all" || "${AGENT_HARNESS}" == "codex" || "${AGENT_HARNESS}" == "antigravity" ]]; then
@@ -258,4 +272,12 @@ fi
 
 echo ""
 echo "Scaffold applied."
+if [[ "${BEADS_BOOTSTRAP_STATUS}" == "ok" ]]; then
+  echo "Beads bootstrap verified."
+elif [[ "${BEADS_BOOTSTRAP_STATUS}" == "failed" ]]; then
+  echo "Warning: scaffold files were written, but 'bd bootstrap --yes --json' did not complete successfully."
+  echo "Verify Beads readiness with: bd status --json"
+elif [[ "${BEADS_BOOTSTRAP_STATUS}" == "not_attempted" ]]; then
+  echo "Note: 'bd' was not found in PATH, so Beads readiness was not verified."
+fi
 echo "Next step: run /bootstrap in your agent harness to hydrate project-specific values from the codebase."

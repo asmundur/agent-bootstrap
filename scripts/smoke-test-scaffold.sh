@@ -21,6 +21,15 @@ require_text() {
   }
 }
 
+forbid_text() {
+  local pattern="$1"
+  local path="$2"
+  if rg -F --quiet "${pattern}" "${path}"; then
+    echo "unexpected text in ${path}: ${pattern}" >&2
+    exit 1
+  fi
+}
+
 template_files=(
   "bootstrap-templates/templates/universal/AGENTS.md.tmpl"
   "bootstrap-templates/templates/universal/CLAUDE.md.tmpl"
@@ -143,6 +152,8 @@ assert_state_accurate() {
       .claude/plans/*|.claude/context/*|.claude/architecture/*) continue ;;
       .agent-scaffold.json) continue ;;
       .beads/issues.jsonl) continue ;;
+      .beads/README.md|.beads/metadata.json|.beads/export-state.json|.beads/push-state.json|.beads/interactions.jsonl) continue ;;
+      .beads/embeddeddolt/*) continue ;;
     esac
     if ! grep -Fxq "${rel}" <<< "${listed}"; then
       echo "file ${rel} exists in ${tmp} but is not in state file" >&2
@@ -164,6 +175,10 @@ assert_state_accurate() {
     echo ".beads/issues.jsonl should remain trackable in ${tmp}" >&2
     exit 1
   fi
+
+  forbid_text "{{BUILD_COMMAND}}" "${tmp}/AGENTS.md"
+  forbid_text "{{LINT_COMMAND}}" "${tmp}/AGENTS.md"
+  forbid_text "{{LINT_COMMAND}}" "${tmp}/.claude/anti-patterns.md"
 }
 
 tmp_all=$(mktemp -d -t scaffold-smoke-all-XXXX)

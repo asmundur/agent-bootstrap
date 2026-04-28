@@ -55,7 +55,8 @@ cd ~/my-cool-app
 The command will:
 1. Generate the scaffold files into `.claude/`, `.beads/`, `.githooks/`, and harness mirrors
 2. Write `.agent-scaffold.json` with the scaffold inventory and placeholder/default variables
-3. Refresh the scaffold later when you re-run it
+3. Attempt a non-destructive `bd bootstrap --yes --json` when `bd` is available so Beads-backed workflows are operational immediately
+4. Refresh the scaffold later when you re-run it
 
 ### 3. Hydrate the scaffold from the existing codebase
 
@@ -68,8 +69,9 @@ Run:
 The skill will:
 1. Read the existing repository instead of interrogating you for basic project facts
 2. Fill in scaffold values from code, config, tests, and docs
-3. Refresh scaffolded docs/config that use those values
-4. Ask you only about unresolved, high-impact ambiguity
+3. Re-run the deterministic scaffold renderer so scaffold-managed files stay consistent with `.agent-scaffold.json`
+4. Verify that scaffold-adjacent tooling such as Beads is actually operational instead of assuming generated files imply readiness
+5. Ask you only about unresolved, high-impact ambiguity
 
 ### 4. Start developing features
 

@@ -14,7 +14,11 @@ Read these files when they exist before you ask retrospective questions:
 - `.claude/architecture/module-map.md`
 - `.claude/plans/` for the relevant feature spec
 
-Ask the user: "Which feature or branch should we retrospect on?"
+Default scope:
+- if the user names a feature, branch, issue, commit range, or session, use that
+- otherwise, retrospect on the work completed in the current chat session on the current branch
+
+Ask the user to clarify scope only when multiple plausible scopes exist and the wrong one would materially change the findings.
 
 ## Phase 2 — Gather Evidence
 
@@ -33,13 +37,20 @@ Show the user:
 - Commit messages (do they tell a coherent story?)
 - Whether the feature spec, glossary, and module map were used or drifted
 
-Ask:
-1. "What went well? What would you do the same way?"
-2. "What was frustrating or slower than it should have been?"
-3. "Was anything unclear or ambiguous at the start?"
-4. "Did terminology drift between the plan, the code, and the user-facing language?"
-5. "Did module boundaries help or get in the way?"
-6. "Which feedback loops caught issues early, and which were missing or too slow?"
+Then separate two kinds of retrospective input:
+
+1. **Agent-answerable questions** — answer these yourself from the evidence before asking the user anything:
+   - Was anything unclear or ambiguous at the start?
+   - Did terminology drift between the plan, code, and user-facing language?
+   - Did module boundaries help or get in the way?
+   - Which feedback loops caught issues early, and which were missing or too slow?
+
+2. **User-experience questions** — ask the user only for what the user uniquely knows:
+   - What went well from your perspective?
+   - What felt frustrating, slow, or surprising?
+   - What would you want preserved or changed next time?
+
+Do not interview the user for observations that are primarily about the agent's own workflow, reasoning, or execution trail when those can be derived from the repository, diffs, commands, and chat context.
 
 ## Phase 4 — Identify Successes
 

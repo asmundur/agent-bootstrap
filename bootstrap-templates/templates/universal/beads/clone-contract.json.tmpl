@@ -4,8 +4,7 @@
   "issue_prefix": "{{BEADS_PREFIX}}",
   "jsonl_export": "issues.jsonl",
   "bootstrap_commands": [
-    "bd init -p {{BEADS_PREFIX}} --skip-agents --skip-hooks --json",
-    "bd import .beads/issues.jsonl --json",
+    "bd bootstrap --yes --json",
     "git config core.hooksPath .githooks"
   ],
   "read_probe": "bd status --json"
