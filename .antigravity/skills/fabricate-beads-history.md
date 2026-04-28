@@ -11,6 +11,21 @@ You are executing the `fabricate-beads-history` skill. Your objective is to back
 
 Walk through the git commit history from the oldest commit to the newest one. For each commit, analyze its changes to understand what work was done, and create a corresponding highest-quality beads task. The task MUST be backdated to match the timestamp of the git commit exactly, and flagged as a retroactive task (`retcon`).
 
+Before starting, verify that the local Beads store is actually operational:
+
+```bash
+bd status --json
+```
+
+If that fails because Beads has not been bootstrapped yet, run the non-destructive setup path first:
+
+```bash
+bd bootstrap --yes --json
+bd status --json
+```
+
+Do not assume that the presence of `.beads/` files means the local database is ready.
+
 ## Step 1: Retrieve the Commit History
 
 Run the following command to get the full list of commits in chronological order (oldest first):
@@ -46,7 +61,8 @@ Capture the newly created task's ID from the JSON output.
 ### 2d: Backdate and Tag the Task (MANDATORY)
 
 You MUST modify the task so its timestamps match the git commit timestamp exactly. This critically involves backdating BOTH the creation time AND the closing time. Also, tag the task as `retcon` to indicate it was retroactively generated.
-Use the `bd sql` command to directly modify the beads Dolt database to backdate the creation time:
+
+Preferred path when `bd sql` is supported by the active backend:
 
 ```bash
 bd sql "UPDATE issues SET created_at = '<commit_timestamp>', updated_at = '<commit_timestamp>' WHERE id = '<task_id>';"
@@ -61,6 +77,14 @@ Since the commit represents the completion of the work, you MUST close the task 
 bd close <task_id> --reason "done" --json
 bd sql "UPDATE issues SET updated_at = '<commit_timestamp>', closed_at = '<commit_timestamp>' WHERE id = '<task_id>';"
 ```
+
+Fallback when `bd sql` is unavailable for the active backend:
+
+- export or construct JSONL entries that include the exact `created_at`, `updated_at`, `closed_at`, `close_reason`, and `labels`
+- import those entries with `bd import <file> --json`
+- prefer stable explicit IDs when bulk-importing retroactive tasks
+
+In other words: exact timestamp fidelity is mandatory, but the mechanism may vary by backend. Do not assume embedded backends support `bd sql`.
 
 ## Step 3: Loop
 

@@ -35,7 +35,9 @@ If a feedback-loop command is set to `not configured`, skip it. Otherwise, use t
 
 ## Scaffold Hydration
 
-After applying the scaffold, run `/bootstrap`. That skill inspects the existing repository, derives project-specific values, updates `.agent-scaffold.json`, and refreshes scaffolded docs/config where those values are used.
+After applying the scaffold, run `/bootstrap`. That skill inspects the existing repository, derives project-specific values, updates `.agent-scaffold.json`, and deterministically refreshes scaffolded docs/config through the scaffold renderer where those values are used.
+
+Re-run `scripts/scaffold.sh` whenever you want to pull the latest forward scaffold changes into the project. It is the only forward refresh path.
 
 ## Code Style Guidelines
 
@@ -94,10 +96,11 @@ bd close <id> --reason "done" --json
 
 `.beads/issues.jsonl` is the git-tracked snapshot; the pre-commit hook refreshes it via `bd export --no-memories` and auto-stages changes, so task state travels with commits. Do not edit `.beads/issues.jsonl` by hand. Do not bypass the hook (`--no-verify`).
 
+Important: the presence of `.beads/config.yaml`, `.beads/clone-contract.json`, or `.githooks/pre-commit` does **not** by itself prove that the local Beads database has been bootstrapped. Treat “files scaffolded” and “tool operational” as separate states.
+
 - Fresh clones must bootstrap local Beads state from `.beads/issues.jsonl`:
 ```bash
-bd init -p age --json
-bd import -i .beads/issues.jsonl --json
+bd bootstrap --yes --json
 bd status --json
 ```
 - Machine consumers should read `.beads/clone-contract.json` instead of inferring readability from `.beads/metadata.json`.
@@ -109,6 +112,8 @@ bd status --json
 2. **Run quality gates** (if code changed) - Tests, linters, builds
 3. **Update issue status** - Close finished work, update in-progress items
 4. **Hand off** - Provide context for next session along with a fitting conventional commit message
+
+If the unit of work changed any git-tracked files, the handoff must include a meaningful, high-signal conventional commit message. Do not end a tracked-file work session without one.
 
 ## Durable Artifacts
 
@@ -133,5 +138,6 @@ These files live under `.claude/` even when you are using another tool. Reuse an
 - Prefer interface-level tests over tests of internal implementation details
 - Stage files individually; never blindly add everything
 - Semantic commit messages: `<type>(<scope>): summary` with a body explaining *why*
+- When handing work back with tracked-file changes, always provide a meaningful, high-signal conventional commit message even if no commit is being created yet
 - Never force-push, never bypass commit hooks
 - Never implement beyond what was agreed

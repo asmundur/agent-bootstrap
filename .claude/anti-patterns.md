@@ -13,6 +13,8 @@ Hard constraints for all agents working on agent-bootstrap. These are non-negoti
 - **Creating commits without user review** — Stage 2.5 human review is mandatory. Never skip it.
 - **Force-pushing or hard-resetting** — These are destructive. Ask the user first.
 - **Bypassing hooks** — Never run `git commit --no-verify` — it skips the beads task handoff.
+- **Treating scaffold presence as proof that tooling is ready** — Generated files and hook scripts are not the same thing as a bootstrapped local tool state. Verify operational readiness explicitly.
+- **Ending tracked-file work without a commit message handoff** — If git-tracked files changed, the handoff must include a meaningful, high-signal conventional commit message.
 
 ## Code Quality Anti-Patterns
 

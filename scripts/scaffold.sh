@@ -116,46 +116,143 @@ replace_vars() {
 GENERATED_TARGETS=()
 GENERATED_SOURCES=()
 GENERATED_CATEGORIES=()
+GENERATED_CHECKSUMS=()
+OBSOLETE_TARGETS=()
 
 record_generated() {
   GENERATED_TARGETS+=("$1")
   GENERATED_SOURCES+=("$2")
   GENERATED_CATEGORIES+=("$3")
+  GENERATED_CHECKSUMS+=("$4")
+}
+
+file_checksum() {
+  shasum -a 256 "$1" | awk '{print $1}'
+}
+
+state_file_checksum() {
+  local target="$1"
+
+  if [[ -z "${existing_state_file}" ]]; then
+    return 0
+  fi
+
+  jq -r --arg target "${target}" '.files[] | select(.target == $target) | .checksum // empty' "${existing_state_file}"
+}
+
+ensure_safe_to_replace() {
+  local target="$1"
+  local expected_checksum=""
+  local current_checksum=""
+
+  if [[ ! -f "${target}" ]]; then
+    return 0
+  fi
+
+  expected_checksum="$(state_file_checksum "${target}")"
+  if [[ -z "${expected_checksum}" ]]; then
+    return 0
+  fi
+
+  current_checksum="$(file_checksum "${target}")"
+  if [[ "${current_checksum}" != "${expected_checksum}" ]]; then
+    echo "Error: scaffold-managed file has local edits: ${target}" >&2
+    echo "Refusing to overwrite drifted scaffold-managed files." >&2
+    exit 1
+  fi
+}
+
+write_from_tmp() {
+  local tmp="$1"
+  local dst="$2"
+  local src="$3"
+  local category="$4"
+  local make_executable="${5:-false}"
+  local checksum=""
+
+  ensure_safe_to_replace "${dst}"
+  mv "${tmp}" "${dst}"
+  if [[ "${make_executable}" == "true" ]]; then
+    chmod +x "${dst}"
+  fi
+  checksum="$(file_checksum "${dst}")"
+  record_generated "${dst}" "${src}" "${category}" "${checksum}"
+  echo "  ✓ ${dst}"
+}
+
+mark_obsolete_targets() {
+  local target=""
+  local found="false"
+
+  if [[ -z "${existing_state_file}" ]]; then
+    return 0
+  fi
+
+  while IFS= read -r target; do
+    [[ -z "${target}" ]] && continue
+    found="false"
+    for generated in "${GENERATED_TARGETS[@]}"; do
+      if [[ "${generated}" == "${target}" ]]; then
+        found="true"
+        break
+      fi
+    done
+    if [[ "${found}" == "false" ]]; then
+      OBSOLETE_TARGETS+=("${target}")
+    fi
+  done < <(jq -r '.files[].target' "${existing_state_file}")
+}
+
+prune_obsolete_targets() {
+  local target=""
+
+  if [[ ${#OBSOLETE_TARGETS[@]} -eq 0 ]]; then
+    return 0
+  fi
+
+  for target in "${OBSOLETE_TARGETS[@]}"; do
+    [[ ! -f "${target}" ]] && continue
+    ensure_safe_to_replace "${target}"
+    rm -f "${target}"
+    echo "  ✓ removed obsolete ${target}"
+  done
 }
 
 copy_template() {
   local src="$1"
   local dst="$2"
   local category="${3:-config}"
-  replace_vars "${TEMPLATE_DIR}/${src}" > "${dst}"
-  record_generated "${dst}" "${src}" "${category}"
-  echo "  ✓ ${dst}"
+  local tmp=""
+  tmp="$(mktemp "${TMPDIR:-/tmp}/scaffold-template.XXXXXX")"
+  replace_vars "${TEMPLATE_DIR}/${src}" > "${tmp}"
+  write_from_tmp "${tmp}" "${dst}" "${src}" "${category}"
 }
 
 copy_hook() {
   local src="$1"
   local dst="$2"
   local category="${3:-hook}"
-  cp "${TEMPLATE_DIR}/${src}" "${dst}"
-  chmod +x "${dst}"
-  record_generated "${dst}" "${src}" "${category}"
-  echo "  ✓ ${dst}"
+  local tmp=""
+  tmp="$(mktemp "${TMPDIR:-/tmp}/scaffold-hook.XXXXXX")"
+  cp "${TEMPLATE_DIR}/${src}" "${tmp}"
+  write_from_tmp "${tmp}" "${dst}" "${src}" "${category}" "true"
 }
 
 copy_raw() {
   local src="$1"
   local dst="$2"
   local category="${3:-config}"
-  cp "${TEMPLATE_DIR}/${src}" "${dst}"
-  record_generated "${dst}" "${src}" "${category}"
-  echo "  ✓ ${dst}"
+  local tmp=""
+  tmp="$(mktemp "${TMPDIR:-/tmp}/scaffold-raw.XXXXXX")"
+  cp "${TEMPLATE_DIR}/${src}" "${tmp}"
+  write_from_tmp "${tmp}" "${dst}" "${src}" "${category}"
 }
 
 copy_template "anti-patterns.md.tmpl" ".claude/anti-patterns.md" "config"
 copy_template "agents/feature-implementation.md.tmpl" ".claude/agents/feature-implementation.md" "agent"
 copy_template "agents/git-manager.md.tmpl" ".claude/agents/git-manager.md" "agent"
 
-for skill in bootstrap grill-me ubiquitous-language improve-architecture tdd feature-start retro sync-bootstrap fabricate-beads-history; do
+for skill in bootstrap grill-me ubiquitous-language improve-architecture tdd feature-start retro fabricate-beads-history; do
   copy_template "skills/${skill}.md.tmpl" ".claude/skills/${skill}.md" "skill"
 done
 
@@ -183,7 +280,7 @@ fi
 
 if [[ "${AGENT_HARNESS}" == "all" || "${AGENT_HARNESS}" == "codex" || "${AGENT_HARNESS}" == "antigravity" ]]; then
   copy_template "AGENTS.md.tmpl" "AGENTS.md" "config"
-  for skill in bootstrap grill-me ubiquitous-language improve-architecture tdd feature-start retro sync-bootstrap fabricate-beads-history; do
+  for skill in bootstrap grill-me ubiquitous-language improve-architecture tdd feature-start retro fabricate-beads-history; do
     if [[ "${AGENT_HARNESS}" == "all" || "${AGENT_HARNESS}" == "codex" ]]; then
       copy_template "skills/${skill}.md.tmpl" ".codex/skills/${skill}.md" "skill"
     fi
@@ -203,7 +300,8 @@ if [[ "${AGENT_HARNESS}" == "all" || "${AGENT_HARNESS}" == "claude-code" ]]; the
     P_OVERVIEW_SECTION="\n## Project Overview\n\n${P_PROJECT_DESCRIPTION}\n\n- **Tech Stack:** ${P_TECH_STACK}\n- **Language:** ${P_MAIN_LANGUAGE}\n- **Source Directory:** ${P_SOURCE_DIR}\n- **Architecture:** ${P_ARCHITECTURE_PATTERN}\n\n## Essential Commands\n\n\`\`\`bash\n# Build\n${P_BUILD_COMMAND}\n\n# Typecheck (optional)\n${P_TYPECHECK_COMMAND}\n\n# Lint (optional)\n${P_LINT_COMMAND}\n\n# Browser verification (optional)\n${P_BROWSER_VERIFY_COMMAND}\n\n# Test\n${P_TEST_COMMAND}\n\n# Run\n${P_RUN_COMMAND}\n\`\`\`\n\n## Architecture & Key Patterns\n\n${P_ARCHITECTURE_PATTERN}\n\nRun \`/bootstrap\` after applying the scaffold so these values can be hydrated from the existing codebase.\n\n## Durable Artifacts\n\n- **Feature specs:** \`.claude/plans/<feature-slug>.md\`\n- **Ubiquitous language:** \`.claude/context/ubiquitous-language.md\`\n- **Module map:** \`.claude/architecture/module-map.md\`\n\nThese files are created or refreshed by the generated skills.\n\n## Code Style Guidelines\n\n- Match the style of surrounding code\n- Functions should do one thing\n- Name things for what they are, not how they're implemented\n- Validate at system boundaries (user input, external APIs) — trust internal code\n- No dead code, no commented-out blocks, no TODO left behind after a feature\n- Tests are not optional\n\n## Task Tracking — Beads\n\nThis project uses [beads](https://github.com/steveyegge/beads) (\`bd\`) for task tracking. Issue prefix: \`${P_BEADS_PREFIX}\`.\n\nBefore starting new work:\n    bd ready --json\n    bd update <id> --claim --json\n\nCreating a task:\n    bd create --title \"...\" -p 2 --json\n\nClosing a task:\n    bd close <id> --reason \"done\" --json\n\n\`.beads/issues.jsonl\` is the git-tracked snapshot; the pre-commit hook refreshes it via \`bd export --no-memories\` and auto-stages changes, so task state travels with commits. Do not edit \`.beads/issues.jsonl\` by hand. Do not bypass the hook (\`--no-verify\`).\n"
   fi
 
-  replace_vars "${TEMPLATE_DIR}/CLAUDE.md.tmpl" > .claude/CLAUDE.md.tmp
+  tmp_claude="$(mktemp "${TMPDIR:-/tmp}/scaffold-claude.XXXXXX")"
+  replace_vars "${TEMPLATE_DIR}/CLAUDE.md.tmpl" > "${tmp_claude}"
 
   awk '
   {
@@ -218,17 +316,19 @@ if [[ "${AGENT_HARNESS}" == "all" || "${AGENT_HARNESS}" == "claude-code" ]]; the
     } else {
       print $0
     }
-  }' .claude/CLAUDE.md.tmp > .claude/CLAUDE.md
+  }' "${tmp_claude}" > "${tmp_claude}.rendered"
 
-  rm .claude/CLAUDE.md.tmp
-  record_generated ".claude/CLAUDE.md" "CLAUDE.md.tmpl" "config"
-  echo "  ✓ .claude/CLAUDE.md"
+  rm "${tmp_claude}"
+  write_from_tmp "${tmp_claude}.rendered" ".claude/CLAUDE.md" "CLAUDE.md.tmpl" "config"
 fi
+
+mark_obsolete_targets
+prune_obsolete_targets
 
 {
   printf '{\n'
   printf '  "generatedBy": "agent-bootstrap",\n'
-  printf '  "templateVersion": "1.1.0",\n'
+  printf '  "templateVersion": "1.2.0",\n'
   printf '  "generatedAt": "%s",\n' "${BOOTSTRAP_DATE}"
   printf '  "agentHarness": "%s",\n' "${AGENT_HARNESS}"
   printf '  "templateSource": "bootstrap-templates/templates/universal",\n'
@@ -257,8 +357,8 @@ fi
     if [[ $i -eq $((count - 1)) ]]; then
       comma=""
     fi
-    printf '    { "target": "%s", "source": "%s", "category": "%s" }%s\n' \
-      "${GENERATED_TARGETS[$i]}" "${GENERATED_SOURCES[$i]}" "${GENERATED_CATEGORIES[$i]}" "${comma}"
+    printf '    { "target": "%s", "source": "%s", "category": "%s", "checksum": "%s" }%s\n' \
+      "${GENERATED_TARGETS[$i]}" "${GENERATED_SOURCES[$i]}" "${GENERATED_CATEGORIES[$i]}" "${GENERATED_CHECKSUMS[$i]}" "${comma}"
   done
 
   printf '  ]\n'

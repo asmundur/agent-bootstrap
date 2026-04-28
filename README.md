@@ -94,10 +94,10 @@ Useful companion skills:
 /retro
 ```
 
-### 6. Pull improvements from the upstream template
+### 6. Refresh scaffold-managed files from the upstream template
 
 ```
-/sync-bootstrap
+../agent-bootstrap/scripts/scaffold.sh
 ```
 
 ## Generated File Structure
@@ -129,7 +129,6 @@ After applying the scaffold, the following files are created at the project root
 │   ├── tdd.md
 │   ├── feature-start.md
 │   ├── retro.md
-│   ├── sync-bootstrap.md
 │   └── fabricate-beads-history.md
 └── workflows/
     └── feature-workflow.md
@@ -148,7 +147,6 @@ AGENTS.md                        # Tool-agnostic project contract
     ├── improve-architecture.md
     ├── tdd.md
     ├── retro.md
-    ├── sync-bootstrap.md
     └── fabricate-beads-history.md
 .antigravity/
 └── skills/
@@ -159,7 +157,6 @@ AGENTS.md                        # Tool-agnostic project contract
     ├── improve-architecture.md
     ├── tdd.md
     ├── retro.md
-    ├── sync-bootstrap.md
     └── fabricate-beads-history.md
 ```
 
@@ -171,5 +168,5 @@ Templates live in `bootstrap-templates/templates/universal/`. All templates use 
 
 1. You run `/retro` after a feature — it analyzes what worked and what didn't
 2. Generalizable findings get propagated back into `bootstrap-templates/`
-3. Other projects using this scaffold re-apply it and use `/sync-bootstrap` where the reverse-direction workflow is needed
+3. Other projects using this scaffold re-run `scripts/scaffold.sh` to pull forward template changes
 4. The system gets better with every project

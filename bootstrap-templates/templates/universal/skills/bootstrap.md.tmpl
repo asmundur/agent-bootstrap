@@ -69,6 +69,16 @@ This includes project-facing docs and config such as:
 - `.beads/config.yaml`
 - any scaffolded skill or workflow file that uses scaffold variables
 
+Use the scaffold renderer as the forward refresh path:
+
+```bash
+../agent-bootstrap/scripts/scaffold.sh
+```
+
+Treat the refresh as two layers of source of truth:
+1. `.agent-scaffold.json` for project values
+2. the scaffold templates for scaffold-managed file shapes
+
 Do not treat project-local working artifacts as scaffold-managed:
 - `.claude/plans/`
 - `.claude/context/`

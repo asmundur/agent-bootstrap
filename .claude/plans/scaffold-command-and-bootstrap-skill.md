@@ -16,7 +16,7 @@ After this change, the shell command owns scaffold installation and refresh, whi
 ## Non-Goals
 
 - Do not redesign the existing feature workflow beyond the bootstrap/scaffold split
-- Do not remove `/sync-bootstrap`; it serves the opposite direction from scaffold application
+- Remove `/sync-bootstrap`; the forward refresh path belongs to `scripts/scaffold.sh`
 - Do not require interactive shell prompts during scaffold application
 - Do not invent stack-specific automation beyond what the bootstrap skill can infer from the target repo
 

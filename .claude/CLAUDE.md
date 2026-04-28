@@ -18,7 +18,6 @@
 | Work in strict red/green/refactor loops | `/tdd` → `.claude/skills/tdd.md` |
 | Start a new feature | `/feature-start` → `.claude/workflows/feature-workflow.md` |
 | Review what worked after a feature | `/retro` → `.claude/skills/retro.md` |
-| Pull upstream template improvements | `/sync-bootstrap` → `.claude/skills/sync-bootstrap.md` |
 | Task tracking | See `AGENTS.md` for mandatory gates and high-fidelity task creation commands |
 
 ## Durable Artifacts

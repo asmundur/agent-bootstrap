@@ -126,10 +126,10 @@ The propagation path from one project's learnings back into the template, and fr
 
 1. **Capture** — `/retro` (`bootstrap-templates/templates/universal/skills/retro.md.tmpl`) runs after a feature lands. It analyzes the diff, asks the user what worked and what didn't, and proposes concrete edits against `bootstrap-templates/`.
 2. **Gate** — Proposals land as a regular commit in the agent-bootstrap repo. The user reviews and approves/rejects via git. Version control is the safety gate; nothing auto-pushes upstream (per "Feedback Loop Propagation" decision above).
-3. **Distribute** — Other projects pull improvements via `/sync-bootstrap`. The skill reads `templateSource` from `.agent-scaffold.json`, compares the project's existing files (also listed in the scaffold state) against the upstream template, and presents an import menu.
-4. **Cursor** — `templateVersion` in the scaffold state is the version of the template that last scaffolded this project. `/sync-bootstrap` uses it to reason about what's new since the last sync.
+3. **Distribute** — Other projects pull improvements by re-running `scripts/scaffold.sh`. The command reads `templateSource` from `.agent-scaffold.json`, re-renders the scaffold-managed files, and refuses to overwrite drifted scaffold-managed files.
+4. **Cursor** — `templateVersion` in the scaffold state is the version of the template that last scaffolded this project. Re-running `scripts/scaffold.sh` uses it as the forward refresh cursor for scaffold-managed files.
 
-`.claude/scaffold-state-spec.md` documents the scaffold-state format that ties parts 3 and 4 together.
+`.claude/scaffold-state-spec.md` documents the scaffold-state format, including drift detection via file checksums.
 
 ## Feedback Loops (operational)
 

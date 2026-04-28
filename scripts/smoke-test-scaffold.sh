@@ -41,7 +41,6 @@ template_files=(
   "bootstrap-templates/templates/universal/skills/tdd.md.tmpl"
   "bootstrap-templates/templates/universal/skills/feature-start.md.tmpl"
   "bootstrap-templates/templates/universal/skills/retro.md.tmpl"
-  "bootstrap-templates/templates/universal/skills/sync-bootstrap.md.tmpl"
   "bootstrap-templates/templates/universal/workflows/feature-workflow.md.tmpl"
 )
 
@@ -59,7 +58,6 @@ local_files=(
   ".claude/skills/tdd.md"
   ".claude/skills/feature-start.md"
   ".claude/skills/retro.md"
-  ".claude/skills/sync-bootstrap.md"
   ".claude/skills/fabricate-beads-history.md"
   ".claude/workflows/feature-workflow.md"
   ".codex/skills/bootstrap.md"
@@ -69,7 +67,6 @@ local_files=(
   ".codex/skills/tdd.md"
   ".codex/skills/feature-start.md"
   ".codex/skills/retro.md"
-  ".codex/skills/sync-bootstrap.md"
   ".codex/skills/fabricate-beads-history.md"
   ".antigravity/skills/bootstrap.md"
   ".antigravity/skills/grill-me.md"
@@ -78,7 +75,6 @@ local_files=(
   ".antigravity/skills/tdd.md"
   ".antigravity/skills/feature-start.md"
   ".antigravity/skills/retro.md"
-  ".antigravity/skills/sync-bootstrap.md"
   ".antigravity/skills/fabricate-beads-history.md"
 )
 
@@ -94,19 +90,32 @@ require_text "/bootstrap" ".claude/CLAUDE.md"
 require_text "\"generatedBy\": \"agent-bootstrap\"" ".agent-scaffold.json"
 require_text "\"agentHarness\":" ".agent-scaffold.json"
 require_text "\"templateSource\":" ".agent-scaffold.json"
+require_text "\"checksum\":" ".agent-scaffold.json"
 require_text "\"TYPECHECK_COMMAND\": \"not configured\"" ".agent-scaffold.json"
 require_text "\"target\": \".claude/skills/bootstrap.md\"" ".agent-scaffold.json"
-require_text "\"target\": \".codex/skills/sync-bootstrap.md\"" ".agent-scaffold.json"
-require_text "\"target\": \".antigravity/skills/sync-bootstrap.md\"" ".agent-scaffold.json"
+require_text "\"target\": \".codex/skills/feature-start.md\"" ".agent-scaffold.json"
+require_text "\"target\": \".antigravity/skills/feature-start.md\"" ".agent-scaffold.json"
 require_text "filling in the project-specific values" "bootstrap-templates/templates/universal/skills/bootstrap.md.tmpl"
 require_text "Stage 0 — Shared Design Alignment" "bootstrap-templates/templates/universal/workflows/feature-workflow.md.tmpl"
 require_text 'Create or update `.claude/context/ubiquitous-language.md`' "bootstrap-templates/templates/universal/skills/ubiquitous-language.md.tmpl"
+forbid_text "/sync-bootstrap" ".claude/CLAUDE.md"
 
 run_scaffold() {
   local tmp="$1"
   local agent_harness="$2"
   mkdir -p "${tmp}"
   bash "${repo_root}/scripts/scaffold.sh" "${tmp}" "${agent_harness}" >/dev/null
+}
+
+assert_drift_fails_loud() {
+  local tmp="$1"
+  printf '\n# local edit\n' >> "${tmp}/AGENTS.md"
+  if bash "${repo_root}/scripts/scaffold.sh" "${tmp}" "all" >/tmp/scaffold-drift.out 2>/tmp/scaffold-drift.err; then
+    echo "scaffold should have failed on local drift" >&2
+    exit 1
+  fi
+  require_text "Refusing to overwrite drifted scaffold-managed files." /tmp/scaffold-drift.err
+  rm -f /tmp/scaffold-drift.out /tmp/scaffold-drift.err
 }
 
 assert_state_accurate() {
@@ -176,8 +185,10 @@ assert_state_accurate() {
     exit 1
   fi
 
-  forbid_text "{{BUILD_COMMAND}}" "${tmp}/AGENTS.md"
-  forbid_text "{{LINT_COMMAND}}" "${tmp}/AGENTS.md"
+  if [[ -f "${tmp}/AGENTS.md" ]]; then
+    forbid_text "{{BUILD_COMMAND}}" "${tmp}/AGENTS.md"
+    forbid_text "{{LINT_COMMAND}}" "${tmp}/AGENTS.md"
+  fi
   forbid_text "{{LINT_COMMAND}}" "${tmp}/.claude/anti-patterns.md"
 }
 
@@ -185,6 +196,7 @@ tmp_all=$(mktemp -d -t scaffold-smoke-all-XXXX)
 trap 'rm -rf "${tmp_all:-}" "${tmp_cc:-}"' EXIT
 run_scaffold "${tmp_all}" "all"
 assert_state_accurate "${tmp_all}" "all"
+assert_drift_fails_loud "${tmp_all}"
 
 tmp_cc=$(mktemp -d -t scaffold-smoke-cc-XXXX)
 run_scaffold "${tmp_cc}" "claude-code"

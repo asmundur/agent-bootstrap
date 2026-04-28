@@ -39,7 +39,7 @@ Canonical terms used across planning, implementation, and documentation. Update 
 | Feedback loop | check, verification command | One of the configured commands: build, typecheck, lint, browser verification, test, run. Each is either a real command or the literal string `not configured`. | `scripts/scaffold.sh`; `.claude/skills/tdd.md` |
 | Bootstrap skill | scaffold hydration, project discovery | The `/bootstrap` skill — reads an existing repository, fills in scaffold variables, and refreshes scaffold-managed docs/config from that evidence. | `bootstrap-templates/templates/universal/skills/bootstrap.md.tmpl` |
 | Retro | retrospective, postmortem | The `/retro` skill — post-feature analysis using 5W root cause that proposes generalizable findings back to the template. | `.claude/skills/retro.md` |
-| Sync | pull, update | The `/sync-bootstrap` skill — selectively imports upstream template improvements into a scaffolded project. | `.claude/skills/sync-bootstrap.md` |
+| Scaffold refresh | sync, pull, update | Re-running `scripts/scaffold.sh` to apply forward scaffold/template changes into a scaffolded project without overwriting drifted scaffold-managed files. | `scripts/scaffold.sh`; `.claude/scaffold-state-spec.md` |
 | Template propagation | upstream sync, push back | Promoting a generalizable retro finding into `bootstrap-templates/templates/universal/` via a Mandatory Gate. | `.claude/skills/retro.md` §"Phase 8" |
 
 ## Tooling & Integrations
