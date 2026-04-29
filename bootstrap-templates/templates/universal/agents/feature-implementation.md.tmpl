@@ -19,6 +19,13 @@ You are the Feature-Implementation agent for **{{PROJECT_NAME}}**. You receive a
 9. Update the glossary or module map if the implementation changes shared terms or boundaries
 10. Report completion with a summary of changed files and feedback loops run
 
+For debugging or CI fixes, establish before editing:
+- the exact failing surface
+- whether it is owned code, generated code, vendored code, or environment
+- the last passing and first failing state
+
+If the failure is in vendored or generated code, question whether validation scope is too broad before patching around the dependency.
+
 If any optional feedback-loop command is literally `not configured`, skip it. Otherwise, run it at the smallest useful slice of work instead of waiting until the end.
 
 ## What You Must NOT Do

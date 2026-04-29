@@ -15,6 +15,7 @@ Goals:
 - Reach a shared design concept for the feature
 - Resolve high-impact decisions or explicitly park them
 - Record the decisions in `.claude/plans/<feature-slug>.md`
+- For debugging and CI work, identify the failure ownership boundary and compare last passing vs first failing state before proposing fixes
 
 **Exit condition:** The important design decisions have been resolved or clearly parked.
 
@@ -33,6 +34,7 @@ Goals:
 - Record affected modules, interface changes, and chosen feedback loops
 - Create implementation slices and beads-ready task slices
 - Create feature branch
+- Keep user-facing process overhead proportional to the size and ambiguity of the task
 
 **Exit condition:** User gives explicit approval to proceed.
 

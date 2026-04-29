@@ -18,6 +18,7 @@ Then explore the codebase to understand:
 - Where similar features live in `{{SOURCE_DIR}}`
 - Existing module boundaries, naming conventions, and abstractions to reuse
 - Test structure and the fastest feedback loops available for this feature
+- For debugging or CI work, the ownership boundary of the failure surface: repo code, generated code, vendored code, or environment
 
 If the request is ambiguous, has multiple reasonable designs, or touches module boundaries, switch into `grill-me` mode:
 - Ask decision-shaping questions until the important branches of the design tree are resolved or explicitly parked
@@ -35,6 +36,7 @@ Create or update `.claude/plans/<feature-slug>.md` with:
 - Affected modules
 - Interface changes
 - Acceptance criteria in Given/When/Then format
+- For debugging or CI specs, the chronology checkpoint: last passing state, first failing state, and suspected boundary of ownership
 - Feedback loops for this feature:
   - Typecheck: `{{TYPECHECK_COMMAND}}`
   - Lint: `{{LINT_COMMAND}}`
@@ -45,6 +47,8 @@ Create or update `.claude/plans/<feature-slug>.md` with:
 - Open questions or explicitly parked decisions
 
 If a feedback-loop command is `not configured`, mark it as intentionally skipped in the spec instead of pretending it exists.
+
+If the task is a small investigation or guidance change, keep user-facing process overhead proportional: record the contract, but avoid turning routine work into unnecessary ceremony.
 
 ## Stage 2 — Prepare the Implementation Contract
 

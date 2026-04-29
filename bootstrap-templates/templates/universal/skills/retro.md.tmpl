@@ -29,6 +29,11 @@ git diff main...<branch>
 
 Read the relevant changed files. Build a picture of what was implemented, how long it took (from commit timestamps), what the diff looks like, and whether the shipped work matched the approved feature spec.
 
+For debugging or CI retros, explicitly reconstruct:
+- the last passing state
+- the first failing state
+- the ownership boundary of the failing surface: repo code, generated code, vendored code, or environment
+
 ## Phase 3 — Present Overview & Get User Input
 
 Show the user:
@@ -89,6 +94,12 @@ Exclude findings that are:
 - One-off bugs with no systemic cause
 - Highly domain-specific to {{PROJECT_NAME}}
 
+Prefer findings that improve the bootstrap itself:
+- debugging order of operations
+- dependency-boundary heuristics
+- process proportionality
+- retro output quality
+
 ## Phase 7 — Action Items
 
 Produce a prioritized list:
@@ -112,3 +123,5 @@ For each universal finding, show the user the proposed change to the bootstrap t
 Say: "I'd like to propagate these [N] findings to the bootstrap template. Here are the proposed changes — approve to write them?"
 
 After approval, make the changes to the template files. This ensures future projects scaffolded from this template benefit from what you learned.
+
+Do not stop at a generic recap when the chat itself exposes a reusable failure mode. Turn that failure mode into a concrete template or workflow improvement whenever the generalizability test passes.
