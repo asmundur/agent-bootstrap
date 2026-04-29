@@ -10,6 +10,8 @@ Read the codebase, configuration, and docs first. Infer as much project context 
 
 Read `.agent-scaffold.json`.
 
+If it contains unresolved `adoptionConflicts`, stop and tell the user to run `/resolve-adopted-artifacts` before hydration or refresh work continues. Do not refresh scaffold-managed files while preserved pre-scaffold artifacts are still awaiting resolution.
+
 Treat its `variables` section as the canonical writable source for scaffold values such as:
 - project name and description
 - tech stack and language

@@ -12,6 +12,7 @@
 | User Intent | Skill / Workflow |
 |---|---|
 | Hydrate scaffold values from the codebase | `/bootstrap` → `.claude/skills/bootstrap.md` |
+| Resolve preserved pre-scaffold artifacts | `/resolve-adopted-artifacts` → `.claude/skills/resolve-adopted-artifacts.md` |
 | Reach shared design before planning | `/grill-me` → `.claude/skills/grill-me.md` |
 | Build or refresh the project glossary | `/ubiquitous-language` → `.claude/skills/ubiquitous-language.md` |
 | Propose better module boundaries | `/improve-architecture` → `.claude/skills/improve-architecture.md` |

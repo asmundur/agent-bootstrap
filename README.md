@@ -55,8 +55,16 @@ cd ~/my-cool-app
 The command will:
 1. Generate the scaffold files into `.claude/`, `.beads/`, `.githooks/`, and harness mirrors
 2. Write `.agent-scaffold.json` with the scaffold inventory and placeholder/default variables
-3. Attempt a non-destructive `bd bootstrap --yes --json` when `bd` is available so Beads-backed workflows are operational immediately
-4. Refresh the scaffold later when you re-run it
+3. Preserve any pre-existing scaffold target as a sibling `*.pre-scaffold.*` backup instead of silently overwriting it
+4. Record unresolved adoption conflicts in `.agent-scaffold.json` until they are reviewed and archived
+5. Attempt a non-destructive `bd bootstrap --yes --json` when `bd` is available so Beads-backed workflows are operational immediately
+6. Refresh the scaffold later when you re-run it
+
+If the scaffold preserved any pre-existing targets, you must resolve them before the next refresh:
+
+```
+/resolve-adopted-artifacts
+```
 
 ### 3. Hydrate the scaffold from the existing codebase
 
@@ -83,6 +91,7 @@ Useful companion skills:
 
 ```
 /grill-me
+/resolve-adopted-artifacts
 /ubiquitous-language
 /improve-architecture
 /tdd
@@ -123,6 +132,7 @@ After applying the scaffold, the following files are created at the project root
 │   └── <feature-slug>.md
 ├── skills/
 │   ├── bootstrap.md
+│   ├── resolve-adopted-artifacts.md
 │   ├── grill-me.md
 │   ├── ubiquitous-language.md
 │   ├── improve-architecture.md
@@ -141,6 +151,7 @@ AGENTS.md                        # Tool-agnostic project contract
 .codex/
 └── skills/
     ├── bootstrap.md
+    ├── resolve-adopted-artifacts.md
     ├── grill-me.md
     ├── feature-start.md
     ├── ubiquitous-language.md
@@ -151,6 +162,7 @@ AGENTS.md                        # Tool-agnostic project contract
 .antigravity/
 └── skills/
     ├── bootstrap.md
+    ├── resolve-adopted-artifacts.md
     ├── grill-me.md
     ├── feature-start.md
     ├── ubiquitous-language.md
@@ -163,6 +175,21 @@ AGENTS.md                        # Tool-agnostic project contract
 ## Template Development
 
 Templates live in `bootstrap-templates/templates/universal/`. All templates use `{{PLACEHOLDER}}` syntax. See the template files for the full list of available variables.
+
+## Adopting Into Existing Projects
+
+When `scripts/scaffold.sh` encounters a pre-existing file at any scaffold target path, it preserves the file first and then continues:
+
+- `AGENTS.md` becomes `AGENTS.pre-scaffold.md`
+- `.claude/CLAUDE.md` becomes `.claude/CLAUDE.pre-scaffold.md`
+
+Those preserved backups are recorded in `.agent-scaffold.json` under temporary `adoptionConflicts` state. While that state exists, later scaffold runs fail until you review and resolve the preserved artifacts.
+
+The resolution flow is:
+1. Run `/resolve-adopted-artifacts`
+2. Extract any template-worthy guidance
+3. Archive the preserved backups under `docs/legacy-agent-artifacts/` using mirrored directory structure
+4. Clear `adoptionConflicts` so scaffold refreshes can proceed again
 
 ## How It Improves Over Time
 

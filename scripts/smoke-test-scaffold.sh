@@ -41,6 +41,7 @@ template_files=(
   "bootstrap-templates/templates/universal/skills/tdd.md.tmpl"
   "bootstrap-templates/templates/universal/skills/feature-start.md.tmpl"
   "bootstrap-templates/templates/universal/skills/retro.md.tmpl"
+  "bootstrap-templates/templates/universal/skills/resolve-adopted-artifacts.md.tmpl"
   "bootstrap-templates/templates/universal/workflows/feature-workflow.md.tmpl"
 )
 
@@ -58,6 +59,7 @@ local_files=(
   ".claude/skills/tdd.md"
   ".claude/skills/feature-start.md"
   ".claude/skills/retro.md"
+  ".claude/skills/resolve-adopted-artifacts.md"
   ".claude/skills/fabricate-beads-history.md"
   ".claude/workflows/feature-workflow.md"
   ".codex/skills/bootstrap.md"
@@ -67,6 +69,7 @@ local_files=(
   ".codex/skills/tdd.md"
   ".codex/skills/feature-start.md"
   ".codex/skills/retro.md"
+  ".codex/skills/resolve-adopted-artifacts.md"
   ".codex/skills/fabricate-beads-history.md"
   ".antigravity/skills/bootstrap.md"
   ".antigravity/skills/grill-me.md"
@@ -75,6 +78,7 @@ local_files=(
   ".antigravity/skills/tdd.md"
   ".antigravity/skills/feature-start.md"
   ".antigravity/skills/retro.md"
+  ".antigravity/skills/resolve-adopted-artifacts.md"
   ".antigravity/skills/fabricate-beads-history.md"
 )
 
@@ -93,9 +97,11 @@ require_text "\"templateSource\":" ".agent-scaffold.json"
 require_text "\"checksum\":" ".agent-scaffold.json"
 require_text "\"TYPECHECK_COMMAND\": \"not configured\"" ".agent-scaffold.json"
 require_text "\"target\": \".claude/skills/bootstrap.md\"" ".agent-scaffold.json"
+require_text "\"target\": \".claude/skills/resolve-adopted-artifacts.md\"" ".agent-scaffold.json"
 require_text "\"target\": \".codex/skills/feature-start.md\"" ".agent-scaffold.json"
 require_text "\"target\": \".antigravity/skills/feature-start.md\"" ".agent-scaffold.json"
 require_text "filling in the project-specific values" "bootstrap-templates/templates/universal/skills/bootstrap.md.tmpl"
+require_text "resolve all unresolved scaffold adoption conflicts in one pass" "bootstrap-templates/templates/universal/skills/resolve-adopted-artifacts.md.tmpl"
 require_text "Stage 0 — Shared Design Alignment" "bootstrap-templates/templates/universal/workflows/feature-workflow.md.tmpl"
 require_text 'Create or update `.claude/context/ubiquitous-language.md`' "bootstrap-templates/templates/universal/skills/ubiquitous-language.md.tmpl"
 forbid_text "/sync-bootstrap" ".claude/CLAUDE.md"
@@ -116,6 +122,75 @@ assert_drift_fails_loud() {
   fi
   require_text "Refusing to overwrite drifted scaffold-managed files." /tmp/scaffold-drift.err
   rm -f /tmp/scaffold-drift.out /tmp/scaffold-drift.err
+}
+
+assert_adoption_conflict_is_preserved() {
+  local tmp="$1"
+  local state="${tmp}/.agent-scaffold.json"
+
+  mkdir -p "${tmp}/.claude"
+  cat <<'EOF' > "${tmp}/AGENTS.md"
+# Legacy AGENTS
+Keep this around.
+EOF
+
+  bash "${repo_root}/scripts/scaffold.sh" "${tmp}" "all" >/tmp/scaffold-adoption.out
+
+  require_file "${tmp}/AGENTS.pre-scaffold.md"
+  require_text "# Legacy AGENTS" "${tmp}/AGENTS.pre-scaffold.md"
+  require_text "# " "${tmp}/AGENTS.md"
+  jq -e '.adoptionConflicts | length == 1' "${state}" >/dev/null
+  require_text "\"target\": \"AGENTS.md\"" "${state}"
+  require_text "\"preservedBackup\": \"AGENTS.pre-scaffold.md\"" "${state}"
+  require_text "\"status\": \"unresolved\"" "${state}"
+  require_text "Next step: run /resolve-adopted-artifacts before re-running scaffold." /tmp/scaffold-adoption.out
+
+  rm -f /tmp/scaffold-adoption.out
+}
+
+assert_adoption_conflict_blocks_rerun() {
+  local tmp="$1"
+
+  if bash "${repo_root}/scripts/scaffold.sh" "${tmp}" "all" >/tmp/scaffold-adoption-rerun.out 2>/tmp/scaffold-adoption-rerun.err; then
+    echo "scaffold should have failed with unresolved adoption conflicts" >&2
+    exit 1
+  fi
+
+  require_text "unresolved adoption conflict" /tmp/scaffold-adoption-rerun.err
+  require_text "/resolve-adopted-artifacts" /tmp/scaffold-adoption-rerun.err
+  rm -f /tmp/scaffold-adoption-rerun.out /tmp/scaffold-adoption-rerun.err
+}
+
+assert_adoption_conflict_drift_fails_loud() {
+  local tmp="$1"
+
+  printf '\nchanged after capture\n' >> "${tmp}/AGENTS.pre-scaffold.md"
+  if bash "${repo_root}/scripts/scaffold.sh" "${tmp}" "all" >/tmp/scaffold-adoption-drift.out 2>/tmp/scaffold-adoption-drift.err; then
+    echo "scaffold should have failed when preserved backups drifted" >&2
+    exit 1
+  fi
+
+  require_text "backup changed since capture" /tmp/scaffold-adoption-drift.err
+  rm -f /tmp/scaffold-adoption-drift.out /tmp/scaffold-adoption-drift.err
+}
+
+assert_adoption_conflict_resolution_unblocks_rerun() {
+  local tmp="$1"
+  local state="${tmp}/.agent-scaffold.json"
+
+  mkdir -p "${tmp}/docs/legacy-agent-artifacts"
+  mv "${tmp}/AGENTS.pre-scaffold.md" "${tmp}/docs/legacy-agent-artifacts/AGENTS.pre-scaffold.md"
+  jq 'del(.adoptionConflicts)' "${state}" > "${state}.next"
+  mv "${state}.next" "${state}"
+
+  bash "${repo_root}/scripts/scaffold.sh" "${tmp}" "all" >/tmp/scaffold-adoption-resolved.out
+  [[ ! -e "${tmp}/AGENTS.pre-scaffold.md" ]] || {
+    echo "resolved scaffold run should not recreate AGENTS.pre-scaffold.md" >&2
+    exit 1
+  }
+  require_file "${tmp}/docs/legacy-agent-artifacts/AGENTS.pre-scaffold.md"
+  jq -e 'has("adoptionConflicts") | not' "${tmp}/.agent-scaffold.json" >/dev/null
+  rm -f /tmp/scaffold-adoption-resolved.out
 }
 
 assert_state_accurate() {
@@ -262,6 +337,16 @@ assert_drift_fails_loud "${tmp_all}"
 tmp_cc=$(mktemp -d -t scaffold-smoke-cc-XXXX)
 run_scaffold "${tmp_cc}" "claude-code"
 assert_state_accurate "${tmp_cc}" "claude-code"
+
+tmp_adopt=$(mktemp -d -t scaffold-smoke-adopt-XXXX)
+assert_adoption_conflict_is_preserved "${tmp_adopt}"
+assert_adoption_conflict_blocks_rerun "${tmp_adopt}"
+assert_adoption_conflict_drift_fails_loud "${tmp_adopt}"
+
+tmp_resolved=$(mktemp -d -t scaffold-smoke-resolved-XXXX)
+assert_adoption_conflict_is_preserved "${tmp_resolved}"
+assert_adoption_conflict_resolution_unblocks_rerun "${tmp_resolved}"
+
 assert_beads_partial_commit_guard
 
 echo "scaffold smoke test passed"
