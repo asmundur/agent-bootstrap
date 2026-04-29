@@ -10,6 +10,10 @@ Review every preserved backup, extract any reusable template value, archive the 
 
 Do not resolve conflicts one-by-one. This is an all-at-once pass.
 
+This skill is part of the scaffold learning loop. Do not treat it as a local cleanup checklist only. If the preserved artifacts reveal a reusable workflow failure, missing scaffold instruction, or agent failure mode, capture that as a template-worthy finding and route it to the upstream `agent-bootstrap` template source.
+
+Do not create target-project Beads issues just to run adoption cleanup or document agent housekeeping. Use the existing body-of-work task when one exists. If the adoption pass discovers real follow-up product work, file that separately and narrowly.
+
 ## Step 1 — Load The Conflict Set
 
 Read `.agent-scaffold.json`.
@@ -49,12 +53,15 @@ For each meaningful finding, classify it as exactly one of:
 1. **Template-worthy**
    - useful to any project using agent-bootstrap
    - belongs in `bootstrap-templates/templates/universal/`
+   - includes reusable agent-workflow failures discovered while resolving the adoption, not only content copied out of legacy files
 
 2. **Obsolete / noise**
    - project-local, stale, redundant, or not worth preserving in active scaffold docs
    - archive it locally only
 
 Do not propagate purely project-local legacy guidance into active scaffold files in this repo. Preserve it only through archival.
+
+Do not conclude "no template-worthy findings" just because the legacy file contents themselves are project-local. Also check whether the adoption process exposed a general scaffold failure, such as creating durable task noise for cleanup, confusing generated files with source templates, or failing to propagate a reusable lesson upstream.
 
 ## Step 4 — Present Proposed Template Improvements
 
@@ -67,6 +74,8 @@ Then separate:
 For template-worthy findings, present proposed template changes in the same style as `/retro`.
 
 **Stop and get user approval before writing any template changes.**
+
+When approved, make template-worthy changes in the upstream `agent-bootstrap` repository's `bootstrap-templates/templates/universal/` tree when that source is available. Generated local `.claude/`, `.codex/`, and `.antigravity/` files are not the source of truth. Refresh generated copies only when explicitly requested or when the accepted scope requires it, and report every generated file changed.
 
 ## Step 5 — Archive The Legacy Artifacts
 

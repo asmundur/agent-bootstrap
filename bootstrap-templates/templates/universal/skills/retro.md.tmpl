@@ -2,6 +2,15 @@
 
 You are running a retrospective for **{{PROJECT_NAME}}**. This skill analyzes a completed feature, identifies what worked and what didn't, and propagates generalizable improvements back into the scaffold template.
 
+The point of `/retro` is not to produce a recap. The point is to improve future work by turning generalizable lessons into concrete edits, especially edits to the upstream scaffold source when the lesson applies beyond the current project.
+
+## Non-Negotiables
+
+- Do not create a new Beads issue just to run a retro or document agent housekeeping. If the completed body of work already has a task, use that context. If the retro will make new tracked-file changes, use an existing relevant task or create a task only for that concrete implementation work.
+- For scaffold, workflow, or agent-behavior retros, lead with the failure mode and the corrective change. Keep evidence brief and only as detailed as needed to justify the change.
+- When a finding is universal, template propagation targets the upstream `agent-bootstrap` repository's `bootstrap-templates/templates/universal/` tree. In a scaffolded project, look for that upstream source through `.agent-scaffold.json.templateSource`, a sibling `../agent-bootstrap`, or the path the user provides. Do not stop after editing generated local `.claude/`, `.codex/`, or `.antigravity/` copies.
+- Generated scaffold files may be refreshed after the upstream template changes, but generated files are not the source of truth.
+
 ## Phase 1 — Load Context
 
 ```bash
@@ -25,9 +34,15 @@ Ask the user to clarify scope only when multiple plausible scopes exist and the 
 ```bash
 git log <branch> --oneline
 git diff main...<branch>
+git status --short
+git diff --stat
+git diff --cached --stat
+git ls-files --others --exclude-standard
 ```
 
 Read the relevant changed files. Build a picture of what was implemented, how long it took (from commit timestamps), what the diff looks like, and whether the shipped work matched the approved feature spec.
+
+For an uncommitted current-session retro, `git diff main...<branch>` may be empty even when the work is real. In that case, use the working tree, staged diff, untracked scaffold files, command outputs, and chat context as the primary evidence.
 
 For debugging or CI retros, explicitly reconstruct:
 - the last passing state
@@ -122,6 +137,6 @@ For each universal finding, show the user the proposed change to the bootstrap t
 
 Say: "I'd like to propagate these [N] findings to the bootstrap template. Here are the proposed changes — approve to write them?"
 
-After approval, make the changes to the template files. This ensures future projects scaffolded from this template benefit from what you learned.
+After approval, make the changes in the upstream `agent-bootstrap` template source, not only in the current project's generated scaffold files. Then refresh generated copies where appropriate so the current repository also reflects the updated template.
 
 Do not stop at a generic recap when the chat itself exposes a reusable failure mode. Turn that failure mode into a concrete template or workflow improvement whenever the generalizability test passes.
