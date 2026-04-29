@@ -34,6 +34,9 @@ Use the `grill-me` method, but point it at the repository before the user:
 - resolve interfaces from config, entrypoints, and tests
 - resolve dependencies from package/build files
 - resolve constraints from docs and existing conventions
+- when debugging, resolve ownership early: local code, generated code, vendor code, or CI/runtime environment
+- when debugging CI, compare the last passing and first failing runs before proposing remediation
+- if a failure originates in dependency code, question validation scope before recommending version pinning or vendor patching
 
 Only escalate to the user when the repository leaves a genuinely consequential ambiguity unresolved.
 

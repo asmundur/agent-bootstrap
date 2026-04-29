@@ -136,14 +136,18 @@ EOF
 
   bash "${repo_root}/scripts/scaffold.sh" "${tmp}" "all" >/tmp/scaffold-adoption.out
 
-  require_file "${tmp}/AGENTS.pre-scaffold.md"
-  require_text "# Legacy AGENTS" "${tmp}/AGENTS.pre-scaffold.md"
-  require_text "# " "${tmp}/AGENTS.md"
+  require_text "# Legacy AGENTS" "${tmp}/AGENTS.md"
+  require_file "${tmp}/AGENTS.scaffold-candidate.md"
+  require_text "# " "${tmp}/AGENTS.scaffold-candidate.md"
   jq -e '.adoptionConflicts | length == 1' "${state}" >/dev/null
   require_text "\"target\": \"AGENTS.md\"" "${state}"
-  require_text "\"preservedBackup\": \"AGENTS.pre-scaffold.md\"" "${state}"
+  require_text "\"scaffoldCandidate\": \"AGENTS.scaffold-candidate.md\"" "${state}"
+  require_text "\"targetChecksum\":" "${state}"
+  require_text "\"candidateChecksum\":" "${state}"
   require_text "\"status\": \"unresolved\"" "${state}"
-  require_text "Next step: run /resolve-adopted-artifacts before re-running scaffold." /tmp/scaffold-adoption.out
+  require_text "AGENTS.md remains active; scaffold candidate: AGENTS.scaffold-candidate.md" /tmp/scaffold-adoption.out
+  require_text "Next step: run /resolve-adopted-artifacts before /bootstrap or another scaffold refresh." /tmp/scaffold-adoption.out
+  forbid_text "Next step: run /bootstrap in your agent harness" /tmp/scaffold-adoption.out
 
   rm -f /tmp/scaffold-adoption.out
 }
@@ -164,13 +168,13 @@ assert_adoption_conflict_blocks_rerun() {
 assert_adoption_conflict_drift_fails_loud() {
   local tmp="$1"
 
-  printf '\nchanged after capture\n' >> "${tmp}/AGENTS.pre-scaffold.md"
+  printf '\nchanged after capture\n' >> "${tmp}/AGENTS.md"
   if bash "${repo_root}/scripts/scaffold.sh" "${tmp}" "all" >/tmp/scaffold-adoption-drift.out 2>/tmp/scaffold-adoption-drift.err; then
-    echo "scaffold should have failed when preserved backups drifted" >&2
+    echo "scaffold should have failed when active conflict targets drifted" >&2
     exit 1
   fi
 
-  require_text "backup changed since capture" /tmp/scaffold-adoption-drift.err
+  require_text "active adoption-conflict target changed since capture" /tmp/scaffold-adoption-drift.err
   rm -f /tmp/scaffold-adoption-drift.out /tmp/scaffold-adoption-drift.err
 }
 
@@ -179,16 +183,17 @@ assert_adoption_conflict_resolution_unblocks_rerun() {
   local state="${tmp}/.agent-scaffold.json"
 
   mkdir -p "${tmp}/docs/legacy-agent-artifacts"
-  mv "${tmp}/AGENTS.pre-scaffold.md" "${tmp}/docs/legacy-agent-artifacts/AGENTS.pre-scaffold.md"
+  mv "${tmp}/AGENTS.md" "${tmp}/docs/legacy-agent-artifacts/AGENTS.md"
+  mv "${tmp}/AGENTS.scaffold-candidate.md" "${tmp}/AGENTS.md"
   jq 'del(.adoptionConflicts)' "${state}" > "${state}.next"
   mv "${state}.next" "${state}"
 
   bash "${repo_root}/scripts/scaffold.sh" "${tmp}" "all" >/tmp/scaffold-adoption-resolved.out
-  [[ ! -e "${tmp}/AGENTS.pre-scaffold.md" ]] || {
-    echo "resolved scaffold run should not recreate AGENTS.pre-scaffold.md" >&2
+  [[ ! -e "${tmp}/AGENTS.scaffold-candidate.md" ]] || {
+    echo "resolved scaffold run should not recreate AGENTS.scaffold-candidate.md" >&2
     exit 1
   }
-  require_file "${tmp}/docs/legacy-agent-artifacts/AGENTS.pre-scaffold.md"
+  require_file "${tmp}/docs/legacy-agent-artifacts/AGENTS.md"
   jq -e 'has("adoptionConflicts") | not' "${tmp}/.agent-scaffold.json" >/dev/null
   rm -f /tmp/scaffold-adoption-resolved.out
 }

@@ -2,13 +2,17 @@
 
 You are running the `resolve-adopted-artifacts` skill for **agent-bootstrap**. Your job is to resolve all unresolved scaffold adoption conflicts in one pass.
 
-This skill exists for the case where `scripts/scaffold.sh` preserved pre-existing artifacts as `*.pre-scaffold.*` backups during first-time scaffold adoption.
+This skill exists for the case where `scripts/scaffold.sh` found pre-existing artifacts during first-time scaffold adoption, left those artifacts active at their original paths, and wrote generated scaffold replacements as `*.scaffold-candidate.*` sidecars.
 
 ## Goal
 
-Review every preserved backup, extract any reusable template value, archive the legacy artifacts under `docs/legacy-agent-artifacts/`, and then clear the temporary `adoptionConflicts` state from `.agent-scaffold.json`.
+Review every active legacy artifact and its scaffold candidate, extract any reusable template value, archive the legacy artifacts under `docs/legacy-agent-artifacts/`, install the accepted scaffold replacements at their target paths, and then clear the temporary `adoptionConflicts` state from `.agent-scaffold.json`.
 
 Do not resolve conflicts one-by-one. This is an all-at-once pass.
+
+This skill is part of the scaffold learning loop. Do not treat it as a local cleanup checklist only. If the legacy artifacts reveal a reusable workflow failure, missing scaffold instruction, or agent failure mode, capture that as a template-worthy finding and route it to the upstream `agent-bootstrap` template source.
+
+Do not create target-project Beads issues just to run adoption cleanup or document agent housekeeping. Use the existing body-of-work task when one exists. If the adoption pass discovers real follow-up product work, file that separately and narrowly.
 
 ## Step 1 — Load The Conflict Set
 
@@ -17,21 +21,24 @@ Read `.agent-scaffold.json`.
 If `adoptionConflicts` is missing or empty, stop and tell the user there is nothing to resolve.
 
 For each conflict, load:
-- the original `target`
-- the sibling `preservedBackup`
+- the active legacy `target`
+- the sibling `scaffoldCandidate`
 - the recorded checksums and capture timestamp
 
 Before doing anything else:
-- verify every `preservedBackup` still exists
-- verify its current checksum still matches `preservedChecksum`
+- verify every active `target` still exists
+- verify every `scaffoldCandidate` still exists
+- verify their current checksums still match `targetChecksum` and `candidateChecksum`
 
-If any preserved backup is missing or drifted, stop and report it clearly. Do not guess at resolution from modified backups.
+If any active target or scaffold candidate is missing or drifted, stop and report it clearly. Do not guess at resolution from modified artifacts.
+
+Backward compatibility: if a conflict row uses the older `preservedBackup` shape, treat the backup as the legacy artifact and the current `target` as the scaffolded replacement. Report that you are resolving an older adoption-conflict shape before continuing.
 
 ## Step 2 — Read Before Asking
 
-For each preserved backup, read:
-- the preserved backup itself
-- the scaffolded file currently at `target`
+For each conflict, read:
+- the active legacy file currently at `target`
+- the scaffold replacement at `scaffoldCandidate`
 - relevant local context such as `.claude/context/ubiquitous-language.md`, `.claude/architecture/module-map.md`, and the relevant feature spec when useful
 
 Use the `grill-me` method on the artifacts first:
@@ -42,6 +49,8 @@ Use the `grill-me` method on the artifacts first:
 
 Answer as much as you can from the files before asking the user anything.
 
+Do not treat this as a file cleanup step. The legacy artifacts and scaffold candidates are evidence. If a legacy artifact appears local, stale, or redundant, still ask what the adoption process itself revealed about the scaffold workflow before deciding it has no reusable value.
+
 ## Step 3 — Classify Findings
 
 For each meaningful finding, classify it as exactly one of:
@@ -49,6 +58,7 @@ For each meaningful finding, classify it as exactly one of:
 1. **Template-worthy**
    - useful to any project using agent-bootstrap
    - belongs in `bootstrap-templates/templates/universal/`
+   - includes reusable agent-workflow failures discovered while resolving the adoption, not only content copied out of legacy files
 
 2. **Obsolete / noise**
    - project-local, stale, redundant, or not worth preserving in active scaffold docs
@@ -56,9 +66,18 @@ For each meaningful finding, classify it as exactly one of:
 
 Do not propagate purely project-local legacy guidance into active scaffold files in this repo. Preserve it only through archival.
 
+Do not conclude "no template-worthy findings" just because the legacy file contents themselves are project-local. Also check whether the adoption process exposed a general scaffold failure, such as creating durable task noise for cleanup, confusing generated files with source templates, or failing to propagate a reusable lesson upstream.
+
+Adoption-process findings are first-class. A reusable finding may come from how the conflict happened or how the agent almost resolved it, not only from text copied out of the legacy file. Check specifically for:
+- premature cleanup before the user sees findings
+- missing extension points for project-local behavior
+- unclear ownership between generated scaffold files and upstream templates
+- lost repo-specific safety checks or workflow hooks
+- agent confusion caused by scaffold-managed files versus local source files
+
 ## Step 4 — Present Proposed Template Improvements
 
-Summarize the preserved artifacts and extracted findings.
+Summarize the legacy artifacts, scaffold candidates, and extracted findings.
 
 Then separate:
 - findings you can justify directly from the files
@@ -66,24 +85,37 @@ Then separate:
 
 For template-worthy findings, present proposed template changes in the same style as `/retro`.
 
-**Stop and get user approval before writing any template changes.**
+Before moving to archival, show a checkpoint table for every conflict:
 
-## Step 5 — Archive The Legacy Artifacts
+| Artifact | Legacy value | Scaffold coverage | Missing or risky behavior | Classification | Proposed action |
+|---|---|---|---|---|---|
+| ... | ... | ... | ... | Template-worthy / Obsolete-noise / Needs user input | ... |
+
+This checkpoint is mandatory even when you believe there are no template-worthy findings. If the table contains any "Needs user input" rows, ask only those questions before continuing. If every row is obsolete/noise, still show why and wait for the user to accept that conclusion.
+
+**Stop and get user approval before writing any template changes, archiving legacy artifacts, installing scaffold candidates, or removing `adoptionConflicts`.**
+
+When approved, make template-worthy changes in the upstream `agent-bootstrap` repository's `bootstrap-templates/templates/universal/` tree when that source is available. Generated local `.claude/`, `.codex/`, and `.antigravity/` files are not the source of truth. Refresh generated copies only when explicitly requested or when the accepted scope requires it, and report every generated file changed.
+
+## Step 5 — Archive The Legacy Artifacts And Install Scaffold Targets
 
 Once the findings are captured:
 - create `docs/legacy-agent-artifacts/` when needed
-- move each `preservedBackup` into that tree using mirrored directory structure relative to the project root
+- move each active legacy `target` into that tree using mirrored directory structure relative to the project root
+- move each `scaffoldCandidate` into its original `target` path, unless the approved resolution explicitly merged legacy value into the target first
+- remove any consumed scaffold candidate sidecars
 
 Examples:
-- `AGENTS.pre-scaffold.md` -> `docs/legacy-agent-artifacts/AGENTS.pre-scaffold.md`
-- `.claude/CLAUDE.pre-scaffold.md` -> `docs/legacy-agent-artifacts/.claude/CLAUDE.pre-scaffold.md`
+- `AGENTS.md` -> `docs/legacy-agent-artifacts/AGENTS.md`
+- `.claude/CLAUDE.md` -> `docs/legacy-agent-artifacts/.claude/CLAUDE.md`
 
 Do not flatten the tree. Preserve original relative paths.
 
 ## Step 6 — Clear Temporary Conflict State
 
-After all preserved backups are archived and any approved template changes are made:
+After all legacy artifacts are archived and any approved template changes are made:
 - remove `adoptionConflicts` from `.agent-scaffold.json`
+- verify each resolved `target` now matches the checksum recorded for the scaffold-managed file entry, or update that file entry checksum when the approved resolution intentionally changed the installed target content
 
 The scaffold state should not retain resolved conflict history.
 
@@ -91,7 +123,7 @@ The scaffold state should not retain resolved conflict history.
 
 Report:
 - how many adoption conflicts were resolved
-- which preserved backups were archived
+- which legacy artifacts were archived
 - which findings were template-worthy versus obsolete/noise
 - whether any template changes were proposed or applied
 

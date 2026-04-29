@@ -6,7 +6,9 @@ The point of `/retro` is not to produce a recap. The point is to improve future 
 
 ## Non-Negotiables
 
-- Do not create a new Beads issue just to run a retro or document agent housekeeping. If the completed body of work already has a task, use that context. If the retro will make new tracked-file changes, use an existing relevant task or create a task only for that concrete implementation work.
+- Do not create a new Beads issue just to run a retro or document agent housekeeping. If the completed body of work already has a task, use that context.
+- When the retro is about agent/process behavior and the user has not requested tracked implementation work, do not create, claim, close, or modify Beads issues. Produce the retro and stop at the template-propagation approval checkpoint.
+- If the retro will make new tracked-file changes after approval, use an existing relevant task only when the user wants that work tracked. Otherwise, make the approved template changes without introducing task-log noise.
 - For scaffold, workflow, or agent-behavior retros, lead with the failure mode and the corrective change. Keep evidence brief and only as detailed as needed to justify the change.
 - When a finding is universal, template propagation targets the upstream `agent-bootstrap` repository's `bootstrap-templates/templates/universal/` tree. In a scaffolded project, look for that upstream source through `.agent-scaffold.json.templateSource`, a sibling `../agent-bootstrap`, or the path the user provides. Do not stop after editing generated local `.claude/`, `.codex/`, or `.antigravity/` copies.
 - Generated scaffold files may be refreshed after the upstream template changes, but generated files are not the source of truth.

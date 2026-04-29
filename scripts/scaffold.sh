@@ -119,10 +119,10 @@ GENERATED_CATEGORIES=()
 GENERATED_CHECKSUMS=()
 OBSOLETE_TARGETS=()
 ADOPTION_CONFLICT_TARGETS=()
-ADOPTION_CONFLICT_BACKUPS=()
+ADOPTION_CONFLICT_CANDIDATES=()
 ADOPTION_CONFLICT_DETECTED_AT=()
-ADOPTION_CONFLICT_ORIGINAL_CHECKSUMS=()
-ADOPTION_CONFLICT_PRESERVED_CHECKSUMS=()
+ADOPTION_CONFLICT_TARGET_CHECKSUMS=()
+ADOPTION_CONFLICT_CANDIDATE_CHECKSUMS=()
 ADOPTION_CONFLICT_STATUSES=()
 
 record_generated() {
@@ -146,7 +146,7 @@ state_file_checksum() {
   jq -r --arg target "${target}" '.files[] | select(.target == $target) | .checksum // empty' "${existing_state_file}"
 }
 
-preserved_backup_path() {
+scaffold_candidate_path() {
   local target="$1"
   local dir=""
   local base=""
@@ -163,52 +163,34 @@ preserved_backup_path() {
   fi
 
   if [[ "${base}" == .* && "${base#*.}" != *.* ]]; then
-    printf '%s%s.pre-scaffold\n' "${prefix}" "${base}"
+    printf '%s%s.scaffold-candidate\n' "${prefix}" "${base}"
     return 0
   fi
 
   if [[ "${base}" == *.* && "${base}" != .* ]]; then
     stem="${base%.*}"
     ext="${base##*.}"
-    printf '%s%s.pre-scaffold.%s\n' "${prefix}" "${stem}" "${ext}"
+    printf '%s%s.scaffold-candidate.%s\n' "${prefix}" "${stem}" "${ext}"
     return 0
   fi
 
   if [[ "${base}" == .* && "${base#*.}" == *.* ]]; then
     stem="${base%.*}"
     ext="${base##*.}"
-    printf '%s%s.pre-scaffold.%s\n' "${prefix}" "${stem}" "${ext}"
+    printf '%s%s.scaffold-candidate.%s\n' "${prefix}" "${stem}" "${ext}"
     return 0
   fi
 
-  printf '%s%s.pre-scaffold\n' "${prefix}" "${base}"
+  printf '%s%s.scaffold-candidate\n' "${prefix}" "${base}"
 }
 
 record_adoption_conflict() {
   ADOPTION_CONFLICT_TARGETS+=("$1")
-  ADOPTION_CONFLICT_BACKUPS+=("$2")
+  ADOPTION_CONFLICT_CANDIDATES+=("$2")
   ADOPTION_CONFLICT_DETECTED_AT+=("$3")
-  ADOPTION_CONFLICT_ORIGINAL_CHECKSUMS+=("$4")
-  ADOPTION_CONFLICT_PRESERVED_CHECKSUMS+=("$5")
+  ADOPTION_CONFLICT_TARGET_CHECKSUMS+=("$4")
+  ADOPTION_CONFLICT_CANDIDATE_CHECKSUMS+=("$5")
   ADOPTION_CONFLICT_STATUSES+=("unresolved")
-}
-
-preserve_existing_target() {
-  local target="$1"
-  local backup=""
-  local checksum=""
-
-  backup="$(preserved_backup_path "${target}")"
-  if [[ -e "${backup}" ]]; then
-    echo "Error: preserved backup path already exists: ${backup}" >&2
-    echo "Resolve or remove the stale pre-scaffold backup before re-running scaffold." >&2
-    exit 1
-  fi
-
-  checksum="$(file_checksum "${target}")"
-  mv "${target}" "${backup}"
-  record_adoption_conflict "${target}" "${backup}" "${BOOTSTRAP_DATE}" "${checksum}" "${checksum}"
-  echo "  ! preserved pre-existing ${target} -> ${backup}"
 }
 
 ensure_safe_to_replace() {
@@ -222,8 +204,9 @@ ensure_safe_to_replace() {
 
   expected_checksum="$(state_file_checksum "${target}")"
   if [[ -z "${expected_checksum}" ]]; then
-    preserve_existing_target "${target}"
-    return 0
+    echo "Error: no scaffold checksum is recorded for existing file: ${target}" >&2
+    echo "Refusing to treat an untracked file as scaffold-managed." >&2
+    exit 1
   fi
 
   current_checksum="$(file_checksum "${target}")"
@@ -245,33 +228,66 @@ has_unresolved_adoption_conflicts() {
 verify_existing_adoption_conflicts() {
   local count=""
   local target=""
-  local backup=""
-  local checksum=""
+  local artifact=""
+  local target_checksum=""
+  local artifact_checksum=""
+  local mode=""
 
   if ! has_unresolved_adoption_conflicts; then
     return 0
   fi
 
-  while IFS=$'\t' read -r target backup checksum; do
+  while IFS=$'\t' read -r target artifact target_checksum artifact_checksum mode; do
     [[ -z "${target}" ]] && continue
 
-    if [[ ! -f "${backup}" ]]; then
-      echo "Error: preserved adoption-conflict backup is missing: ${backup}" >&2
+    if [[ "${mode}" == "candidate" ]]; then
+      if [[ ! -f "${target}" ]]; then
+        echo "Error: active adoption-conflict target is missing: ${target}" >&2
+        exit 1
+      fi
+
+      if [[ "$(file_checksum "${target}")" != "${target_checksum}" ]]; then
+        echo "Error: active adoption-conflict target changed since capture: ${target}" >&2
+        exit 1
+      fi
+    fi
+
+    if [[ ! -f "${artifact}" ]]; then
+      if [[ "${mode}" == "candidate" ]]; then
+        echo "Error: scaffold adoption-conflict candidate is missing: ${artifact}" >&2
+      else
+        echo "Error: preserved adoption-conflict backup is missing: ${artifact}" >&2
+      fi
       echo "Target still awaiting resolution: ${target}" >&2
       exit 1
     fi
 
-    if [[ "$(file_checksum "${backup}")" != "${checksum}" ]]; then
-      echo "Error: preserved adoption-conflict backup changed since capture: ${backup}" >&2
+    if [[ "$(file_checksum "${artifact}")" != "${artifact_checksum}" ]]; then
+      if [[ "${mode}" == "candidate" ]]; then
+        echo "Error: scaffold adoption-conflict candidate changed since capture: ${artifact}" >&2
+      else
+        echo "Error: preserved adoption-conflict backup changed since capture: ${artifact}" >&2
+      fi
       echo "Target still awaiting resolution: ${target}" >&2
       exit 1
     fi
-  done < <(jq -r '.adoptionConflicts[]? | [.target, .preservedBackup, .preservedChecksum] | @tsv' "${existing_state_file}")
+  done < <(jq -r '.adoptionConflicts[]? | [
+    .target,
+    (.scaffoldCandidate // .preservedBackup // ""),
+    (.targetChecksum // .originalChecksum // ""),
+    (.candidateChecksum // .preservedChecksum // ""),
+    (if has("scaffoldCandidate") then "candidate" else "backup" end)
+  ] | @tsv' "${existing_state_file}")
 
   count="$(jq -r '.adoptionConflicts | length' "${existing_state_file}")"
   echo "Error: scaffold has ${count} unresolved adoption conflict(s)." >&2
-  jq -r '.adoptionConflicts[] | "  - " + .target + " (preserved at " + .preservedBackup + ")"' "${existing_state_file}" >&2
-  echo "Run /resolve-adopted-artifacts to archive the preserved files before re-running scaffold." >&2
+  jq -r '.adoptionConflicts[] |
+    if has("scaffoldCandidate") then
+      "  - " + .target + " (scaffold candidate at " + .scaffoldCandidate + ")"
+    else
+      "  - " + .target + " (preserved at " + .preservedBackup + ")"
+    end' "${existing_state_file}" >&2
+  echo "Run /resolve-adopted-artifacts before re-running scaffold." >&2
   exit 1
 }
 
@@ -282,8 +298,41 @@ write_from_tmp() {
   local category="$4"
   local make_executable="${5:-false}"
   local checksum=""
+  local expected_checksum=""
+  local current_checksum=""
+  local candidate=""
+  local target_checksum=""
 
-  ensure_safe_to_replace "${dst}"
+  if [[ -e "${dst}" ]]; then
+    expected_checksum="$(state_file_checksum "${dst}")"
+    if [[ -z "${expected_checksum}" ]]; then
+      candidate="$(scaffold_candidate_path "${dst}")"
+      if [[ -e "${candidate}" ]]; then
+        echo "Error: scaffold candidate path already exists: ${candidate}" >&2
+        echo "Resolve or remove the stale scaffold candidate before re-running scaffold." >&2
+        exit 1
+      fi
+
+      if [[ "${make_executable}" == "true" ]]; then
+        chmod +x "${tmp}"
+      fi
+      target_checksum="$(file_checksum "${dst}")"
+      checksum="$(file_checksum "${tmp}")"
+      mv "${tmp}" "${candidate}"
+      record_adoption_conflict "${dst}" "${candidate}" "${BOOTSTRAP_DATE}" "${target_checksum}" "${checksum}"
+      record_generated "${dst}" "${src}" "${category}" "${checksum}"
+      echo "  ! kept active pre-existing ${dst}; wrote scaffold candidate ${candidate}"
+      return 0
+    fi
+
+    current_checksum="$(file_checksum "${dst}")"
+    if [[ "${current_checksum}" != "${expected_checksum}" ]]; then
+      echo "Error: scaffold-managed file has local edits: ${dst}" >&2
+      echo "Refusing to overwrite drifted scaffold-managed files." >&2
+      exit 1
+    fi
+  fi
+
   mv "${tmp}" "${dst}"
   if [[ "${make_executable}" == "true" ]]; then
     chmod +x "${dst}"
@@ -477,9 +526,9 @@ prune_obsolete_targets
       if [[ $i -eq $((count - 1)) ]]; then
         comma=""
       fi
-      printf '    { "target": "%s", "preservedBackup": "%s", "detectedAt": "%s", "originalChecksum": "%s", "preservedChecksum": "%s", "status": "%s" }%s\n' \
-        "${ADOPTION_CONFLICT_TARGETS[$i]}" "${ADOPTION_CONFLICT_BACKUPS[$i]}" "${ADOPTION_CONFLICT_DETECTED_AT[$i]}" \
-        "${ADOPTION_CONFLICT_ORIGINAL_CHECKSUMS[$i]}" "${ADOPTION_CONFLICT_PRESERVED_CHECKSUMS[$i]}" \
+      printf '    { "target": "%s", "scaffoldCandidate": "%s", "detectedAt": "%s", "targetChecksum": "%s", "candidateChecksum": "%s", "status": "%s" }%s\n' \
+        "${ADOPTION_CONFLICT_TARGETS[$i]}" "${ADOPTION_CONFLICT_CANDIDATES[$i]}" "${ADOPTION_CONFLICT_DETECTED_AT[$i]}" \
+        "${ADOPTION_CONFLICT_TARGET_CHECKSUMS[$i]}" "${ADOPTION_CONFLICT_CANDIDATE_CHECKSUMS[$i]}" \
         "${ADOPTION_CONFLICT_STATUSES[$i]}" "${comma}"
     done
 
@@ -511,9 +560,8 @@ echo "Scaffold applied."
 if [[ ${#ADOPTION_CONFLICT_TARGETS[@]} -gt 0 ]]; then
   echo "Adoption conflicts preserved during this run:"
   for ((i=0; i<${#ADOPTION_CONFLICT_TARGETS[@]}; i++)); do
-    echo "  - ${ADOPTION_CONFLICT_TARGETS[$i]} -> ${ADOPTION_CONFLICT_BACKUPS[$i]}"
+    echo "  - ${ADOPTION_CONFLICT_TARGETS[$i]} remains active; scaffold candidate: ${ADOPTION_CONFLICT_CANDIDATES[$i]}"
   done
-  echo "Next step: run /resolve-adopted-artifacts before re-running scaffold."
 fi
 if [[ "${BEADS_BOOTSTRAP_STATUS}" == "ok" ]]; then
   echo "Beads bootstrap verified."
@@ -526,4 +574,8 @@ elif [[ "${BEADS_BOOTSTRAP_STATUS}" == "deferred" ]]; then
 elif [[ "${BEADS_BOOTSTRAP_STATUS}" == "not_attempted" ]]; then
   echo "Note: 'bd' was not found in PATH, so Beads readiness was not verified."
 fi
-echo "Next step: run /bootstrap in your agent harness to hydrate project-specific values from the codebase."
+if [[ ${#ADOPTION_CONFLICT_TARGETS[@]} -gt 0 ]]; then
+  echo "Next step: run /resolve-adopted-artifacts before /bootstrap or another scaffold refresh."
+else
+  echo "Next step: run /bootstrap in your agent harness to hydrate project-specific values from the codebase."
+fi
