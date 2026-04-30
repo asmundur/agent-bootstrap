@@ -175,6 +175,8 @@ Then ask only the questions that need human judgment. Do not ask the user to ins
 
 For policy artifacts, the interview must be a continuation of the extraction, not a summary endpoint. After identifying a bundled loss, ask what to incorporate into upstream templates, variables, extension points, or local constraints for each distinct rule family. Never stop at a handy summary of the rules that would be lost.
 
+Err on the side of a more complete questionnaire when multiple independent decisions are hiding under one artifact. If a compact question groups several rule families, the numbered prompt must still name each unresolved family and force a disposition for each one; otherwise split it into additional short questions or a second follow-up checkpoint. A user should never have to infer that approving one broad question also approved unrelated rules inside the same bundle.
+
 Good adoption-resolution questions are:
 - disposition-shaping: "Should this rule become universal scaffold behavior, stay local, or be archived?"
 - variable-shaping: "Is this a repo-specific value, or should the scaffold expose an extension point for it?"

@@ -115,6 +115,7 @@ require_text "apply upstream source changes first" "bootstrap-templates/template
 require_text "Do not compress a policy artifact into an umbrella phrase" "bootstrap-templates/templates/universal/skills/resolve-adopted-artifacts.md.tmpl"
 require_text "For every bundled policy loss, split the bundle into concrete rule rows before the interview" "bootstrap-templates/templates/universal/skills/resolve-adopted-artifacts.md.tmpl"
 require_text "the interview must be a continuation of the extraction, not a summary endpoint" "bootstrap-templates/templates/universal/skills/resolve-adopted-artifacts.md.tmpl"
+require_text "Err on the side of a more complete questionnaire when multiple independent decisions are hiding under one artifact" "bootstrap-templates/templates/universal/skills/resolve-adopted-artifacts.md.tmpl"
 require_text "no session-close git actions, no tracker push, generated instruction ownership, hook path ownership, stale Beads runtime recovery, and tracker-only work ledgers" "bootstrap-templates/templates/universal/skills/resolve-adopted-artifacts.md.tmpl"
 require_text "Question: Should I preserve these locally?" "bootstrap-templates/templates/universal/skills/resolve-adopted-artifacts.md.tmpl"
 require_text "Project-Specific Safety Constraints" "bootstrap-templates/templates/universal/AGENTS.md.tmpl"
