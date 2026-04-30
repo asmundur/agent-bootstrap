@@ -55,6 +55,50 @@ json_value() {
   fi
 }
 
+inferred_beads_prefix() {
+  local value=""
+
+  if [[ -f ".beads/config.yaml" ]]; then
+    value="$(awk -F: '
+      /^[[:space:]]*issue-prefix[[:space:]]*:/ {
+        value = $2
+        sub(/^[[:space:]]*/, "", value)
+        sub(/[[:space:]]*$/, "", value)
+        print value
+        exit
+      }
+    ' ".beads/config.yaml")"
+    if [[ -n "${value}" ]]; then
+      printf '%s\n' "${value}"
+      return 0
+    fi
+  fi
+
+  if [[ -f ".beads/clone-contract.json" ]]; then
+    value="$(jq -r '.issue_prefix // empty' ".beads/clone-contract.json" 2>/dev/null || true)"
+    if [[ -n "${value}" ]]; then
+      printf '%s\n' "${value}"
+      return 0
+    fi
+  fi
+
+  printf 'prj\n'
+}
+
+inferred_beads_bootstrap_commands_json() {
+  local value=""
+
+  if [[ -f ".beads/clone-contract.json" ]]; then
+    value="$(jq -c '(.bootstrap_commands // empty) | select(type == "array" and length > 0)' ".beads/clone-contract.json" 2>/dev/null || true)"
+    if [[ -n "${value}" ]]; then
+      printf '%s\n' "${value}"
+      return 0
+    fi
+  fi
+
+  printf '%s\n' '["bd bootstrap --yes --json","git config core.hooksPath .githooks"]'
+}
+
 PROJECT_NAME="$(json_value "PROJECT_NAME" "__PROJECT_NAME__")"
 PROJECT_DESCRIPTION="$(json_value "PROJECT_DESCRIPTION" "Project description pending /bootstrap.")"
 TECH_STACK="$(json_value "TECH_STACK" "Unknown")"
@@ -67,7 +111,8 @@ TEST_COMMAND="$(json_value "TEST_COMMAND" "not configured")"
 RUN_COMMAND="$(json_value "RUN_COMMAND" "not configured")"
 SOURCE_DIR="$(json_value "SOURCE_DIR" "not configured")"
 ARCHITECTURE_PATTERN="$(json_value "ARCHITECTURE_PATTERN" "not configured")"
-BEADS_PREFIX="$(json_value "BEADS_PREFIX" "prj")"
+BEADS_PREFIX="$(json_value "BEADS_PREFIX" "$(inferred_beads_prefix)")"
+BEADS_BOOTSTRAP_COMMANDS_JSON="$(inferred_beads_bootstrap_commands_json)"
 BOOTSTRAP_DATE="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 
 export P_PROJECT_NAME="${PROJECT_NAME}"
@@ -397,6 +442,9 @@ copy_hook() {
   local tmp=""
   tmp="$(mktemp "${TMPDIR:-/tmp}/scaffold-hook.XXXXXX")"
   cp "${TEMPLATE_DIR}/${src}" "${tmp}"
+  if [[ "${dst}" == ".githooks/pre-commit" ]]; then
+    merge_pre_commit_local_commands "${tmp}" "${dst}"
+  fi
   write_from_tmp "${tmp}" "${dst}" "${src}" "${category}" "true"
 }
 
@@ -408,6 +456,59 @@ copy_raw() {
   tmp="$(mktemp "${TMPDIR:-/tmp}/scaffold-raw.XXXXXX")"
   cp "${TEMPLATE_DIR}/${src}" "${tmp}"
   write_from_tmp "${tmp}" "${dst}" "${src}" "${category}"
+}
+
+copy_beads_clone_contract() {
+  local tmp=""
+  tmp="$(mktemp "${TMPDIR:-/tmp}/scaffold-clone-contract.XXXXXX")"
+  jq -n \
+    --arg issue_prefix "${BEADS_PREFIX}" \
+    --argjson bootstrap_commands "${BEADS_BOOTSTRAP_COMMANDS_JSON}" \
+    '{
+      mode: "bootstrap_required",
+      backend: "dolt",
+      issue_prefix: $issue_prefix,
+      jsonl_export: "issues.jsonl",
+      bootstrap_commands: $bootstrap_commands,
+      read_probe: "bd status --json"
+    }' > "${tmp}"
+  write_from_tmp "${tmp}" ".beads/clone-contract.json" "beads/clone-contract.json.tmpl" "beads"
+}
+
+merge_pre_commit_local_commands() {
+  local tmp="$1"
+  local existing="$2"
+  local extra=""
+
+  if [[ ! -f "${existing}" ]]; then
+    return 0
+  fi
+
+  extra="$(mktemp "${TMPDIR:-/tmp}/scaffold-pre-commit-extra.XXXXXX")"
+  awk '
+    NR == FNR {
+      seen[$0] = 1
+      next
+    }
+    /^#!/ { next }
+    /^[[:space:]]*set[[:space:]]+-euo[[:space:]]+pipefail[[:space:]]*$/ { next }
+    /^[[:space:]]*$/ { next }
+    /_common\.sh/ && /source/ { next }
+    /beads-pre-commit\.sh/ { next }
+    /^# Preserved from pre-existing \.githooks\/pre-commit during scaffold adoption\./ { next }
+    seen[$0] { next }
+    { print }
+  ' "${tmp}" "${existing}" > "${extra}"
+
+  if [[ -s "${extra}" ]]; then
+    {
+      printf '\n'
+      printf '# Preserved from pre-existing .githooks/pre-commit during scaffold adoption.\n'
+      cat "${extra}"
+    } >> "${tmp}"
+  fi
+
+  rm -f "${extra}"
 }
 
 verify_existing_adoption_conflicts
@@ -423,7 +524,7 @@ done
 copy_template "workflows/feature-workflow.md.tmpl" ".claude/workflows/feature-workflow.md" "workflow"
 
 copy_template "beads/config.yaml.tmpl" ".beads/config.yaml" "beads"
-copy_template "beads/clone-contract.json.tmpl" ".beads/clone-contract.json" "beads"
+copy_beads_clone_contract
 copy_raw "beads/gitignore" ".beads/.gitignore" "beads"
 
 copy_hook "githooks/_common.sh" ".githooks/_common.sh" "hook"

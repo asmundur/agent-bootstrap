@@ -115,6 +115,8 @@ require_text "apply upstream source changes first" "bootstrap-templates/template
 require_text "Project-Specific Safety Constraints" "bootstrap-templates/templates/universal/AGENTS.md.tmpl"
 require_text "Stage 0 — Shared Design Alignment" "bootstrap-templates/templates/universal/workflows/feature-workflow.md.tmpl"
 require_text 'Create or update `.claude/context/ubiquitous-language.md`' "bootstrap-templates/templates/universal/skills/ubiquitous-language.md.tmpl"
+require_text "pre-commit.local" "bootstrap-templates/templates/universal/githooks/pre-commit"
+require_text "git ls-files -- .beads/" "bootstrap-templates/templates/universal/githooks/beads-pre-commit.sh"
 forbid_text "/sync-bootstrap" ".claude/CLAUDE.md"
 
 run_scaffold() {
@@ -207,6 +209,79 @@ assert_adoption_conflict_resolution_unblocks_rerun() {
   require_file "${tmp}/docs/legacy-agent-artifacts/AGENTS.md"
   jq -e 'has("adoptionConflicts") | not' "${tmp}/.agent-scaffold.json" >/dev/null
   rm -f /tmp/scaffold-adoption-resolved.out
+}
+
+assert_existing_beads_contract_is_inferred() {
+  local tmp="$1"
+  local state="${tmp}/.agent-scaffold.json"
+
+  mkdir -p "${tmp}/.beads" "${tmp}/.githooks" "${tmp}/scripts"
+  cat <<'EOF' > "${tmp}/.beads/config.yaml"
+issue-prefix: ghq
+EOF
+  cat <<'EOF' > "${tmp}/.beads/clone-contract.json"
+{
+  "mode": "bootstrap_required",
+  "backend": "dolt",
+  "issue_prefix": "ghq",
+  "jsonl_export": "issues.jsonl",
+  "bootstrap_commands": [
+    "bd init -p ghq --skip-agents --skip-hooks --json",
+    "bd import .beads/issues.jsonl --json",
+    "git config core.hooksPath .githooks"
+  ],
+  "read_probe": "bd status --json"
+}
+EOF
+  cat <<'EOF' > "${tmp}/.githooks/beads-pre-commit.sh"
+#!/usr/bin/env bash
+set -euo pipefail
+echo old beads hook
+EOF
+  chmod +x "${tmp}/.githooks/beads-pre-commit.sh"
+  cat <<'EOF' > "${tmp}/.githooks/pre-commit"
+#!/usr/bin/env bash
+set -euo pipefail
+
+source "$(cd "$(dirname "$0")" && pwd)/_common.sh"
+
+"$(cd "$(dirname "$0")" && pwd)/beads-pre-commit.sh" "$@"
+"${repo_root}/scripts/secrets-validate" --mode pre-commit --repo-root "${repo_root}"
+"${repo_root}/scripts/lint" --fix
+EOF
+  chmod +x "${tmp}/.githooks/pre-commit"
+
+  bash "${repo_root}/scripts/scaffold.sh" "${tmp}" "all" >/tmp/scaffold-existing-beads.out
+
+  jq -e '.variables.BEADS_PREFIX == "ghq"' "${state}" >/dev/null
+  require_file "${tmp}/.beads/config.scaffold-candidate.yaml"
+  require_text "issue-prefix: ghq" "${tmp}/.beads/config.scaffold-candidate.yaml"
+
+  require_file "${tmp}/.beads/clone-contract.scaffold-candidate.json"
+  jq -e '.issue_prefix == "ghq"' "${tmp}/.beads/clone-contract.scaffold-candidate.json" >/dev/null
+  jq -e '.bootstrap_commands == [
+    "bd init -p ghq --skip-agents --skip-hooks --json",
+    "bd import .beads/issues.jsonl --json",
+    "git config core.hooksPath .githooks"
+  ]' "${tmp}/.beads/clone-contract.scaffold-candidate.json" >/dev/null
+
+  require_file "${tmp}/.githooks/pre-commit.scaffold-candidate"
+  require_text "pre-commit.local" "${tmp}/.githooks/pre-commit.scaffold-candidate"
+  require_text "Preserved from pre-existing .githooks/pre-commit" "${tmp}/.githooks/pre-commit.scaffold-candidate"
+  require_text 'scripts/secrets-validate' "${tmp}/.githooks/pre-commit.scaffold-candidate"
+  require_text 'scripts/lint' "${tmp}/.githooks/pre-commit.scaffold-candidate"
+
+  require_file "${tmp}/.githooks/beads-pre-commit.scaffold-candidate.sh"
+  require_text "git ls-files -- .beads/" "${tmp}/.githooks/beads-pre-commit.scaffold-candidate.sh"
+  require_text "tracked .beads/ files are involved" "${tmp}/.githooks/beads-pre-commit.scaffold-candidate.sh"
+
+  jq -e '.adoptionConflicts | map(.target) |
+    index(".beads/config.yaml") and
+    index(".beads/clone-contract.json") and
+    index(".githooks/pre-commit") and
+    index(".githooks/beads-pre-commit.sh")' "${state}" >/dev/null
+
+  rm -f /tmp/scaffold-existing-beads.out
 }
 
 assert_state_accurate() {
@@ -328,7 +403,7 @@ assert_beads_partial_commit_guard() {
     echo "pathspec commit should have failed when Beads snapshot was involved in ${repo}" >&2
     exit 1
   fi
-  require_text "beads: .beads/issues.jsonl is involved in this commit" "${commit_err}"
+  require_text "beads: tracked .beads/ files are involved in this commit" "${commit_err}"
 
   git -C "${repo}" commit -m "test full commit" >/dev/null
 
@@ -346,7 +421,7 @@ assert_beads_partial_commit_guard() {
 }
 
 tmp_all=$(mktemp -d -t scaffold-smoke-all-XXXX)
-trap 'rm -rf "${tmp_all:-}" "${tmp_cc:-}"' EXIT
+trap 'rm -rf "${tmp_all:-}" "${tmp_cc:-}" "${tmp_adopt:-}" "${tmp_existing_beads:-}" "${tmp_resolved:-}"' EXIT
 run_scaffold "${tmp_all}" "all"
 assert_state_accurate "${tmp_all}" "all"
 assert_drift_fails_loud "${tmp_all}"
@@ -359,6 +434,9 @@ tmp_adopt=$(mktemp -d -t scaffold-smoke-adopt-XXXX)
 assert_adoption_conflict_is_preserved "${tmp_adopt}"
 assert_adoption_conflict_blocks_rerun "${tmp_adopt}"
 assert_adoption_conflict_drift_fails_loud "${tmp_adopt}"
+
+tmp_existing_beads=$(mktemp -d -t scaffold-smoke-existing-beads-XXXX)
+assert_existing_beads_contract_is_inferred "${tmp_existing_beads}"
 
 tmp_resolved=$(mktemp -d -t scaffold-smoke-resolved-XXXX)
 assert_adoption_conflict_is_preserved "${tmp_resolved}"
