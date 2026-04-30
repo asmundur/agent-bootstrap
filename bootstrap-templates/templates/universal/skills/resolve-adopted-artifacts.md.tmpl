@@ -51,7 +51,7 @@ Use the `grill-me` method on the artifacts first:
 
 Answer as much as you can from the files before asking the user anything.
 
-Before classifying or proposing any file operation, build an artifact extraction ledger. This can be internal while you work, but the user-facing checkpoint must reflect it. For every meaningful legacy rule or behavior, capture:
+Before classifying or proposing any file operation, build an artifact extraction ledger. This ledger is working material, not the user-facing format. Distill it into concise findings and questions later instead of pasting a giant table into chat. For every meaningful legacy rule or behavior, capture:
 - the source artifact and heading or nearby text
 - the concrete command, path, restriction, safety check, recovery path, or ownership boundary
 - the failure it prevents or workflow value it preserves
@@ -114,49 +114,58 @@ Adoption-process findings are first-class. A reusable finding may come from how 
 - lost repo-specific safety checks or workflow hooks
 - agent confusion caused by scaffold-managed files versus local source files
 
-## Step 4 — Present The Extraction Checkpoint
+## Step 4 — Run The Extraction Interview
 
-Summarize the legacy artifacts, scaffold candidates, and extracted findings. The checkpoint should read like an evidence-backed extraction brief, not like a list of files to overwrite.
+The user-facing checkpoint must be a grill-me style interview, not a bloated report.
 
-Then separate:
-- findings you can justify directly from the files
-- any user-input questions that only the user can answer
+Before asking questions, give a short decision brief:
+- one sentence stating how many conflicts were inspected and whether checksums matched
+- 3-7 bullets for the highest-risk losses or reusable lessons found
+- a compact "my default if you agree" recommendation
+
+Then ask only the questions that need human judgment. Do not ask the user to inspect your whole ledger. Do not present a wide matrix covering every conflict. Do not require the user to parse artifact-by-artifact tables before they can answer.
+
+Good adoption-resolution questions are:
+- disposition-shaping: "Should this rule become universal scaffold behavior, stay local, or be archived?"
+- variable-shaping: "Is this a repo-specific value, or should the scaffold expose an extension point for it?"
+- safety-shaping: "Is this hook/check/restriction still required here after scaffold adoption?"
+- ownership-shaping: "Is this generated target allowed to change, or is another upstream template the source of truth?"
+- scope-shaping: "Should I apply this upstream template change now, or record it as follow-up?"
+
+Ask questions in small groups. Prefer 2-5 numbered questions in a checkpoint. If there are more unresolved decisions, ask the next group after the user answers. Use terse evidence under each question only when it changes the decision.
+
+Use this shape by default:
+
+```markdown
+I inspected <n> conflicts. Checksums still match.
+
+What I think matters:
+- <finding with source path and impact>
+- <finding with source path and impact>
+- <finding with source path and impact>
+
+My default resolution:
+- <template-worthy changes>
+- <local constraints to preserve>
+- <archive-only items>
+
+Questions:
+1. <focused question with 1-2 concrete options>
+2. <focused question with 1-2 concrete options>
+3. <focused question with 1-2 concrete options>
+```
 
 For template-worthy findings, present proposed template changes in the same style as `/retro`.
 
-For `AGENTS.md` and similar policy artifacts, the checkpoint must include individual policy rows when the file contains multiple independent rules. Do not collapse "repo-specific safety constraints" into one row. Grill the user on any rule whose classification is unclear:
+For `AGENTS.md` and similar policy artifacts, the internal inventory must still cover individual rules when the file contains multiple independent rules. Do not collapse "repo-specific safety constraints" into one blob internally. In the user-facing interview, group related rules into human-sized question prompts and grill the user on any classification that is unclear:
 - "Should this become a universal scaffold rule?"
 - "Is this a project variable or hook/command extension point?"
 - "Is this still required only for this repository?"
 - "Is this obsolete now that the scaffold has standardized the workflow?"
 
-Before moving to archival, show a checkpoint for every conflict using readable sections:
+This interview checkpoint is mandatory even when you believe there are no template-worthy findings. If every finding looks obsolete/noise, say why in a few bullets and ask the user to confirm that archive-only conclusion. If a policy artifact has safety constraints and none are classified as template-worthy or project-local-preserve, treat that as suspicious and re-run the line-item inventory before asking.
 
-1. **Artifact Summary**
-
-| Artifact | Legacy role | Candidate role | High-risk difference |
-|---|---|---|---|
-| ... | ... | ... | ... |
-
-2. **Extracted Policy / Workflow Value**
-
-Use this table for `AGENTS.md`, `CLAUDE.md`, hook scripts, setup docs, and any other policy artifact. If there are many rows, group them under short headings, but keep each independent rule as its own row.
-
-| Source | Extracted rule or contract | Why it matters | Scaffold coverage | Disposition |
-|---|---|---|---|---|
-| ... | ... | ... | Full / Partial / Missing / Conflicts | Template-worthy / Project-local-preserve / Obsolete-noise / Needs user input |
-
-3. **Proposed Actions After Approval**
-
-Only after showing extracted value, list the concrete file actions:
-
-| Artifact | Proposed action | Reason |
-|---|---|---|
-| ... | Promote upstream / merge into local target / install candidate / archive only / ask user | ... |
-
-This checkpoint is mandatory even when you believe there are no template-worthy findings. If the table contains any "Needs user input" rows, ask only those questions before continuing. If every row is obsolete/noise, still show why and wait for the user to accept that conclusion. If a policy artifact has safety constraints and none are classified as template-worthy or project-local-preserve, treat that as suspicious and re-run the line-item inventory before asking for approval.
-
-Keep the checkpoint concise enough to read. Do not create a single wide table that mixes source evidence, classification, and filesystem operations for many unrelated artifacts. Separate extraction from resolution.
+Keep the checkpoint concise enough to answer. Avoid tables unless there are at most 3 rows and the table is clearly easier to read than bullets. Never create a single wide table that mixes source evidence, classification, and filesystem operations for many unrelated artifacts. Separate extraction questions from resolution actions.
 
 **Stop and get user approval before writing any template changes, archiving legacy artifacts, installing scaffold candidates, or removing `adoptionConflicts`.**
 

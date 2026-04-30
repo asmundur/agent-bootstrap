@@ -103,6 +103,8 @@ require_text "\"target\": \".antigravity/skills/feature-start.md\"" ".agent-scaf
 require_text "filling in the project-specific values" "bootstrap-templates/templates/universal/skills/bootstrap.md.tmpl"
 require_text "resolve all unresolved scaffold adoption conflicts in one pass" "bootstrap-templates/templates/universal/skills/resolve-adopted-artifacts.md.tmpl"
 require_text "line-item policy inventory" "bootstrap-templates/templates/universal/skills/resolve-adopted-artifacts.md.tmpl"
+require_text "grill-me style interview" "bootstrap-templates/templates/universal/skills/resolve-adopted-artifacts.md.tmpl"
+require_text "Do not present a wide matrix covering every conflict" "bootstrap-templates/templates/universal/skills/resolve-adopted-artifacts.md.tmpl"
 require_text "Project-Specific Safety Constraints" "bootstrap-templates/templates/universal/AGENTS.md.tmpl"
 require_text "Stage 0 — Shared Design Alignment" "bootstrap-templates/templates/universal/workflows/feature-workflow.md.tmpl"
 require_text 'Create or update `.claude/context/ubiquitous-language.md`' "bootstrap-templates/templates/universal/skills/ubiquitous-language.md.tmpl"
