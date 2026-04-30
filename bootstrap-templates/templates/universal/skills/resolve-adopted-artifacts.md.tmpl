@@ -6,7 +6,7 @@ This skill exists for the case where `scripts/scaffold.sh` found pre-existing ar
 
 ## Goal
 
-Review every active legacy artifact and its scaffold candidate, extract any reusable template value, archive the legacy artifacts under `docs/legacy-agent-artifacts/`, install the accepted scaffold replacements at their target paths, and then clear the temporary `adoptionConflicts` state from `.agent-scaffold.json`.
+Review every active legacy artifact and its scaffold candidate, extract any reusable template value, preserve any genuinely local safety constraints in the accepted scaffold target, archive the legacy artifacts under `docs/legacy-agent-artifacts/`, install the accepted scaffold replacements at their target paths, and then clear the temporary `adoptionConflicts` state from `.agent-scaffold.json`.
 
 Do not resolve conflicts one-by-one. This is an all-at-once pass.
 
@@ -51,6 +51,14 @@ Answer as much as you can from the files before asking the user anything.
 
 Do not treat this as a file cleanup step. The legacy artifacts and scaffold candidates are evidence. If a legacy artifact appears local, stale, or redundant, still ask what the adoption process itself revealed about the scaffold workflow before deciding it has no reusable value.
 
+For policy artifacts such as `AGENTS.md`, `CLAUDE.md`, harness instruction files, hook scripts, and setup docs, do a line-item policy inventory instead of summarizing the file as one blob. Extract every imperative rule, safety constraint, command contract, recovery path, ownership boundary, and "do not" instruction. For each extracted rule, decide whether it is:
+- a scaffold-standard rule that belongs in the upstream template
+- a scaffold variable or extension point with a repo-specific value
+- a genuinely project-local safety constraint that must remain active after adoption
+- obsolete/noise that only needs archival
+
+Do not equate repo-specific wording with repo-specific essence. Many legacy instructions are "repo-specific" only because they were written before this scaffold standardized the workflow. Your job is to separate the generalizable rule from the local value. For example, a concrete issue prefix, hook path, validation command, or bootstrap recovery command may point to a missing variable, extension point, or standard guardrail rather than content that should be archived as local trivia.
+
 ## Step 3 — Classify Findings
 
 For each meaningful finding, classify it as exactly one of:
@@ -60,13 +68,19 @@ For each meaningful finding, classify it as exactly one of:
    - belongs in `bootstrap-templates/templates/universal/`
    - includes reusable agent-workflow failures discovered while resolving the adoption, not only content copied out of legacy files
 
-2. **Obsolete / noise**
+2. **Project-local preserved constraint**
+   - still active and important for this repository
+   - too tied to this project's tools, hosting, compliance, security model, or operational contract to put directly into the universal scaffold
+   - should be merged into the accepted scaffold target under a local safety-constraints section, not lost into archival only
+   - should be rewritten narrowly with concrete evidence, exact commands/paths, and no generic workflow lessons that should have been promoted upstream instead
+
+3. **Obsolete / noise**
    - project-local, stale, redundant, or not worth preserving in active scaffold docs
    - archive it locally only
 
-Do not propagate purely project-local legacy guidance into active scaffold files in this repo. Preserve it only through archival.
+Do not propagate purely project-local legacy guidance into upstream templates. Preserve active local guidance only when it is a real safety constraint, and keep it in the accepted scaffold target rather than in the universal source.
 
-Do not conclude "no template-worthy findings" just because the legacy file contents themselves are project-local. Also check whether the adoption process exposed a general scaffold failure, such as creating durable task noise for cleanup, confusing generated files with source templates, or failing to propagate a reusable lesson upstream.
+Do not conclude "no template-worthy findings" just because the legacy file contents are phrased around this repository. First grill the boundary: what is the reusable workflow rule, what is the local parameter, and what is truly local? Also check whether the adoption process exposed a general scaffold failure, such as creating durable task noise for cleanup, confusing generated files with source templates, or failing to propagate a reusable lesson upstream.
 
 Adoption-process findings are first-class. A reusable finding may come from how the conflict happened or how the agent almost resolved it, not only from text copied out of the legacy file. Check specifically for:
 - premature cleanup before the user sees findings
@@ -85,13 +99,19 @@ Then separate:
 
 For template-worthy findings, present proposed template changes in the same style as `/retro`.
 
+For `AGENTS.md` and similar policy artifacts, the checkpoint must include individual policy rows when the file contains multiple independent rules. Do not collapse "repo-specific safety constraints" into one row. Grill the user on any rule whose classification is unclear:
+- "Should this become a universal scaffold rule?"
+- "Is this a project variable or hook/command extension point?"
+- "Is this still required only for this repository?"
+- "Is this obsolete now that the scaffold has standardized the workflow?"
+
 Before moving to archival, show a checkpoint table for every conflict:
 
 | Artifact | Legacy value | Scaffold coverage | Missing or risky behavior | Classification | Proposed action |
 |---|---|---|---|---|---|
-| ... | ... | ... | ... | Template-worthy / Obsolete-noise / Needs user input | ... |
+| ... | ... | ... | ... | Template-worthy / Project-local-preserve / Obsolete-noise / Needs user input | ... |
 
-This checkpoint is mandatory even when you believe there are no template-worthy findings. If the table contains any "Needs user input" rows, ask only those questions before continuing. If every row is obsolete/noise, still show why and wait for the user to accept that conclusion.
+This checkpoint is mandatory even when you believe there are no template-worthy findings. If the table contains any "Needs user input" rows, ask only those questions before continuing. If every row is obsolete/noise, still show why and wait for the user to accept that conclusion. If a policy artifact has safety constraints and none are classified as template-worthy or project-local-preserve, treat that as suspicious and re-run the line-item inventory before asking for approval.
 
 **Stop and get user approval before writing any template changes, archiving legacy artifacts, installing scaffold candidates, or removing `adoptionConflicts`.**
 
@@ -102,8 +122,10 @@ When approved, make template-worthy changes in the upstream `agent-bootstrap` re
 Once the findings are captured:
 - create `docs/legacy-agent-artifacts/` when needed
 - move each active legacy `target` into that tree using mirrored directory structure relative to the project root
-- move each `scaffoldCandidate` into its original `target` path, unless the approved resolution explicitly merged legacy value into the target first
+- move each `scaffoldCandidate` into its original `target` path, unless the approved resolution explicitly merged template-worthy or project-local-preserve value into the target first
 - remove any consumed scaffold candidate sidecars
+
+When a project-local preserved constraint applies to `AGENTS.md`, merge it into the scaffold target under `## Project-Specific Safety Constraints`. Keep the wording narrow and concrete. Do not use this local section for broad workflow lessons, because those belong upstream.
 
 Examples:
 - `AGENTS.md` -> `docs/legacy-agent-artifacts/AGENTS.md`

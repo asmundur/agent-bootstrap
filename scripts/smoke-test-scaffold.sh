@@ -102,6 +102,8 @@ require_text "\"target\": \".codex/skills/feature-start.md\"" ".agent-scaffold.j
 require_text "\"target\": \".antigravity/skills/feature-start.md\"" ".agent-scaffold.json"
 require_text "filling in the project-specific values" "bootstrap-templates/templates/universal/skills/bootstrap.md.tmpl"
 require_text "resolve all unresolved scaffold adoption conflicts in one pass" "bootstrap-templates/templates/universal/skills/resolve-adopted-artifacts.md.tmpl"
+require_text "line-item policy inventory" "bootstrap-templates/templates/universal/skills/resolve-adopted-artifacts.md.tmpl"
+require_text "Project-Specific Safety Constraints" "bootstrap-templates/templates/universal/AGENTS.md.tmpl"
 require_text "Stage 0 — Shared Design Alignment" "bootstrap-templates/templates/universal/workflows/feature-workflow.md.tmpl"
 require_text 'Create or update `.claude/context/ubiquitous-language.md`' "bootstrap-templates/templates/universal/skills/ubiquitous-language.md.tmpl"
 forbid_text "/sync-bootstrap" ".claude/CLAUDE.md"
@@ -266,6 +268,7 @@ assert_state_accurate() {
   fi
 
   if [[ -f "${tmp}/AGENTS.md" ]]; then
+    require_text "Project-Specific Safety Constraints" "${tmp}/AGENTS.md"
     forbid_text "{{BUILD_COMMAND}}" "${tmp}/AGENTS.md"
     forbid_text "{{LINT_COMMAND}}" "${tmp}/AGENTS.md"
   fi
