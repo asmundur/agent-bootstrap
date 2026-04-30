@@ -118,6 +118,10 @@ require_text "the interview must be a continuation of the extraction, not a summ
 require_text "no session-close git actions, no tracker push, generated instruction ownership, hook path ownership, stale Beads runtime recovery, and tracker-only work ledgers" "bootstrap-templates/templates/universal/skills/resolve-adopted-artifacts.md.tmpl"
 require_text "Question: Should I preserve these locally?" "bootstrap-templates/templates/universal/skills/resolve-adopted-artifacts.md.tmpl"
 require_text "Project-Specific Safety Constraints" "bootstrap-templates/templates/universal/AGENTS.md.tmpl"
+require_text "Agents must not run \`git add\`, \`git commit\`, or \`git push\` as an automatic session-close workflow." "bootstrap-templates/templates/universal/AGENTS.md.tmpl"
+require_text "If local Beads runtime state is stale" "bootstrap-templates/templates/universal/AGENTS.md.tmpl"
+require_text "Do not create markdown TODO trackers or side ledgers for net-new work." "bootstrap-templates/templates/universal/AGENTS.md.tmpl"
+require_text "stale_runtime_recovery" "bootstrap-templates/templates/universal/beads/clone-contract.json.tmpl"
 require_text "Stage 0 — Shared Design Alignment" "bootstrap-templates/templates/universal/workflows/feature-workflow.md.tmpl"
 require_text 'Create or update `.claude/context/ubiquitous-language.md`' "bootstrap-templates/templates/universal/skills/ubiquitous-language.md.tmpl"
 require_text "pre-commit.local" "bootstrap-templates/templates/universal/githooks/pre-commit"
@@ -269,6 +273,7 @@ EOF
     "bd import .beads/issues.jsonl --json",
     "git config core.hooksPath .githooks"
   ]' "${tmp}/.beads/clone-contract.scaffold-candidate.json" >/dev/null
+  jq -e '.stale_runtime_recovery.local_pins | index(".beads/dolt-server.port")' "${tmp}/.beads/clone-contract.scaffold-candidate.json" >/dev/null
 
   require_file "${tmp}/.githooks/pre-commit.scaffold-candidate"
   require_text "pre-commit.local" "${tmp}/.githooks/pre-commit.scaffold-candidate"
@@ -358,9 +363,13 @@ assert_state_accurate() {
 
   if [[ -f "${tmp}/AGENTS.md" ]]; then
     require_text "Project-Specific Safety Constraints" "${tmp}/AGENTS.md"
+    require_text "Agents must not run \`git add\`, \`git commit\`, or \`git push\` as an automatic session-close workflow." "${tmp}/AGENTS.md"
+    require_text "If local Beads runtime state is stale" "${tmp}/AGENTS.md"
+    require_text "Do not create markdown TODO trackers or side ledgers for net-new work." "${tmp}/AGENTS.md"
     forbid_text "{{BUILD_COMMAND}}" "${tmp}/AGENTS.md"
     forbid_text "{{LINT_COMMAND}}" "${tmp}/AGENTS.md"
   fi
+  jq -e '.stale_runtime_recovery.retry_probes | index("bd status --json") and index("bd ready --json")' "${tmp}/.beads/clone-contract.json" >/dev/null
   forbid_text "{{LINT_COMMAND}}" "${tmp}/.claude/anti-patterns.md"
 }
 

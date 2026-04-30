@@ -470,7 +470,23 @@ copy_beads_clone_contract() {
       issue_prefix: $issue_prefix,
       jsonl_export: "issues.jsonl",
       bootstrap_commands: $bootstrap_commands,
-      read_probe: "bd status --json"
+      read_probe: "bd status --json",
+      stale_runtime_recovery: {
+        verify_hooks_path: "git config --get core.hooksPath",
+        local_pins: [
+          ".beads/dolt-server.port"
+        ],
+        clear_when_unowned: [
+          ".beads/dolt-server.pid",
+          ".beads/dolt-server.log",
+          ".beads/dolt-server.lock",
+          ".beads/dolt-server.activity"
+        ],
+        retry_probes: [
+          "bd status --json",
+          "bd ready --json"
+        ]
+      }
     }' > "${tmp}"
   write_from_tmp "${tmp}" ".beads/clone-contract.json" "beads/clone-contract.json.tmpl" "beads"
 }
