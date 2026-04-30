@@ -8,6 +8,8 @@ This skill exists for the case where `scripts/scaffold.sh` found pre-existing ar
 
 Review every active legacy artifact and its scaffold candidate, extract any reusable template value, preserve any genuinely local safety constraints in the accepted scaffold target, archive the legacy artifacts under `docs/legacy-agent-artifacts/`, install the accepted scaffold replacements at their target paths, and then clear the temporary `adoptionConflicts` state from `.agent-scaffold.json`.
 
+The first deliverable is the extraction, not the file move. You must show what the scaffold should learn from the conflicted artifacts before you propose replacing, archiving, or deleting anything.
+
 Do not resolve conflicts one-by-one. This is an all-at-once pass.
 
 This skill is part of the scaffold learning loop. Do not treat it as a local cleanup checklist only. If the legacy artifacts reveal a reusable workflow failure, missing scaffold instruction, or agent failure mode, capture that as a template-worthy finding and route it to the upstream `agent-bootstrap` template source.
@@ -49,6 +51,16 @@ Use the `grill-me` method on the artifacts first:
 
 Answer as much as you can from the files before asking the user anything.
 
+Before classifying or proposing any file operation, build an artifact extraction ledger. This can be internal while you work, but the user-facing checkpoint must reflect it. For every meaningful legacy rule or behavior, capture:
+- the source artifact and heading or nearby text
+- the concrete command, path, restriction, safety check, recovery path, or ownership boundary
+- the failure it prevents or workflow value it preserves
+- whether the scaffold candidate already covers it, partially covers it, conflicts with it, or misses it
+- the reusable workflow rule, separated from any repo-specific parameter
+- the proposed disposition: promote upstream, expose as a scaffold variable/extension point, preserve locally, or archive only
+
+Do not start from the diff as a replacement checklist. Start from the legacy artifact as evidence: ask what the pre-existing file taught agents to do, why that mattered, and whether the candidate would preserve that behavior.
+
 Do not treat this as a file cleanup step. The legacy artifacts and scaffold candidates are evidence. If a legacy artifact appears local, stale, or redundant, still ask what the adoption process itself revealed about the scaffold workflow before deciding it has no reusable value.
 
 For policy artifacts such as `AGENTS.md`, `CLAUDE.md`, harness instruction files, hook scripts, and setup docs, do a line-item policy inventory instead of summarizing the file as one blob. Extract every imperative rule, safety constraint, command contract, recovery path, ownership boundary, and "do not" instruction. For each extracted rule, decide whether it is:
@@ -58,6 +70,17 @@ For policy artifacts such as `AGENTS.md`, `CLAUDE.md`, harness instruction files
 - obsolete/noise that only needs archival
 
 Do not equate repo-specific wording with repo-specific essence. Many legacy instructions are "repo-specific" only because they were written before this scaffold standardized the workflow. Your job is to separate the generalizable rule from the local value. For example, a concrete issue prefix, hook path, validation command, or bootstrap recovery command may point to a missing variable, extension point, or standard guardrail rather than content that should be archived as local trivia.
+
+`AGENTS.md` is usually the highest-signal conflict. Process it before lower-level config and hook files when it appears in `adoptionConflicts`. For `AGENTS.md`, explicitly extract these categories when present:
+- task-tracking entry and exit rules
+- issue creation quality bar and required fields
+- prohibited agent actions such as auto-commit, auto-push, force-push, generated-instruction restoration, or hook bypass
+- hook path, generated-file, and source-of-truth ownership boundaries
+- clone/bootstrap/recovery commands and stale-runtime cleanup paths
+- requirements about not creating alternate TODO trackers or durable work ledgers
+- repo-specific validation, lint, secret scanning, or pre-commit commands
+
+If the scaffold candidate would drop any extracted `AGENTS.md` rule, say that directly and classify the loss before proposing an install action.
 
 ## Step 3 — Classify Findings
 
@@ -82,6 +105,8 @@ Do not propagate purely project-local legacy guidance into upstream templates. P
 
 Do not conclude "no template-worthy findings" just because the legacy file contents are phrased around this repository. First grill the boundary: what is the reusable workflow rule, what is the local parameter, and what is truly local? Also check whether the adoption process exposed a general scaffold failure, such as creating durable task noise for cleanup, confusing generated files with source templates, or failing to propagate a reusable lesson upstream.
 
+For a policy artifact with any imperative content, a conclusion of "archive only" is valid only after the extraction ledger shows that each rule is either already fully covered by the scaffold or is genuinely obsolete. If you cannot prove that, classify the row as "Needs user input" rather than burying it in an archive plan.
+
 Adoption-process findings are first-class. A reusable finding may come from how the conflict happened or how the agent almost resolved it, not only from text copied out of the legacy file. Check specifically for:
 - premature cleanup before the user sees findings
 - missing extension points for project-local behavior
@@ -89,9 +114,9 @@ Adoption-process findings are first-class. A reusable finding may come from how 
 - lost repo-specific safety checks or workflow hooks
 - agent confusion caused by scaffold-managed files versus local source files
 
-## Step 4 — Present Proposed Template Improvements
+## Step 4 — Present The Extraction Checkpoint
 
-Summarize the legacy artifacts, scaffold candidates, and extracted findings.
+Summarize the legacy artifacts, scaffold candidates, and extracted findings. The checkpoint should read like an evidence-backed extraction brief, not like a list of files to overwrite.
 
 Then separate:
 - findings you can justify directly from the files
@@ -105,13 +130,33 @@ For `AGENTS.md` and similar policy artifacts, the checkpoint must include indivi
 - "Is this still required only for this repository?"
 - "Is this obsolete now that the scaffold has standardized the workflow?"
 
-Before moving to archival, show a checkpoint table for every conflict:
+Before moving to archival, show a checkpoint for every conflict using readable sections:
 
-| Artifact | Legacy value | Scaffold coverage | Missing or risky behavior | Classification | Proposed action |
-|---|---|---|---|---|---|
-| ... | ... | ... | ... | Template-worthy / Project-local-preserve / Obsolete-noise / Needs user input | ... |
+1. **Artifact Summary**
+
+| Artifact | Legacy role | Candidate role | High-risk difference |
+|---|---|---|---|
+| ... | ... | ... | ... |
+
+2. **Extracted Policy / Workflow Value**
+
+Use this table for `AGENTS.md`, `CLAUDE.md`, hook scripts, setup docs, and any other policy artifact. If there are many rows, group them under short headings, but keep each independent rule as its own row.
+
+| Source | Extracted rule or contract | Why it matters | Scaffold coverage | Disposition |
+|---|---|---|---|---|
+| ... | ... | ... | Full / Partial / Missing / Conflicts | Template-worthy / Project-local-preserve / Obsolete-noise / Needs user input |
+
+3. **Proposed Actions After Approval**
+
+Only after showing extracted value, list the concrete file actions:
+
+| Artifact | Proposed action | Reason |
+|---|---|---|
+| ... | Promote upstream / merge into local target / install candidate / archive only / ask user | ... |
 
 This checkpoint is mandatory even when you believe there are no template-worthy findings. If the table contains any "Needs user input" rows, ask only those questions before continuing. If every row is obsolete/noise, still show why and wait for the user to accept that conclusion. If a policy artifact has safety constraints and none are classified as template-worthy or project-local-preserve, treat that as suspicious and re-run the line-item inventory before asking for approval.
+
+Keep the checkpoint concise enough to read. Do not create a single wide table that mixes source evidence, classification, and filesystem operations for many unrelated artifacts. Separate extraction from resolution.
 
 **Stop and get user approval before writing any template changes, archiving legacy artifacts, installing scaffold candidates, or removing `adoptionConflicts`.**
 
