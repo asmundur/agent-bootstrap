@@ -56,9 +56,13 @@ Use this section only for constraints that remain genuinely local after `/resolv
 
 This project uses [beads](https://github.com/steveyegge/beads) (`bd`) for task tracking. Issue prefix: `{{BEADS_PREFIX}}`.
 
-### Mandatory Gate — One Task Per Body of Work
+### Mandatory Gate — One Task Per Tracked Body of Work
 
-**Before starting any body of work**, you must have a single claimed Beads task in hand. One task covers all the edits for that work.
+Use Beads for tracked work that changes project state: implementation, tests, docs, architecture artifacts, durable decisions, bug investigations that will produce follow-up work, and any multi-step task whose outcome should survive the chat.
+
+Do **not** create or claim Beads tasks just to talk about the codebase. Discussion, explanation, read-only exploration, lightweight review, command-output inspection, and agent/process retros should stay out of Beads unless the user explicitly asks to track them or they turn into an implementation/change task. If the user invokes a slash-command skill, load that skill first; its task-tracking rules override this default when they are more specific.
+
+**Before starting any tracked body of work**, you must have a single claimed Beads task in hand. One task covers all the edits for that work.
 1. **Run `bd ready --json`** to inspect open tasks.
 2. **If a match exists**, claim it: `bd update <id> --claim --json`. Announce the claimed ID in your first response.
 3. **If no match exists**, create one first, then claim it. Do not start planning or editing until the task is created and claimed.
