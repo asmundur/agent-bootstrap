@@ -95,6 +95,16 @@ For policy artifacts such as `AGENTS.md`, `CLAUDE.md`, harness instruction files
 - a genuinely project-local safety constraint that must remain active after adoption
 - obsolete/noise that only needs archival
 
+Do not compress a policy artifact into an umbrella phrase such as "stricter repo rules", "local safety constraints", "repo-specific guardrails", or "custom workflow notes" before the user has seen the decomposed rules. Those labels are only acceptable after you have already extracted the individual rules and asked whether each rule's essence belongs upstream, belongs behind a scaffold variable or extension point, stays project-local, or should be archived.
+
+For every bundled policy loss, split the bundle into concrete rule rows before the interview. A sentence like "AGENTS.md would lose no auto-commit, no push, hook path ownership, stale-runtime recovery, and no TODO trackers" is not sufficient. The interview must cut into each rule family with source evidence and a classification question, for example:
+- `no git add/commit/push`: is this a universal no-session-close-git-action rule, a project-local restriction, or obsolete?
+- `no bd dolt push`: is this a universal tracker-push prohibition, a Beads-specific variable/extension point, or project-local?
+- `do not run bd setup codex`: is this a universal generated-instruction ownership rule or local to repositories with repo-owned agent files?
+- `.githooks/ is the only supported hook path`: is this a scaffold-standard hook ownership rule, a variable, or local?
+- stale Beads runtime cleanup commands: are these a reusable recovery contract, a Beads clone-contract variable, or local runbook content?
+- no markdown TODO trackers: is this a universal "use the project tracker only" rule or local preference?
+
 Do not equate repo-specific wording with repo-specific essence. Many legacy instructions are "repo-specific" only because they were written before this scaffold standardized the workflow. Your job is to separate the generalizable rule from the local value. For example, a concrete issue prefix, hook path, validation command, or bootstrap recovery command may point to a missing variable, extension point, or standard guardrail rather than content that should be archived as local trivia.
 
 `AGENTS.md` is usually the highest-signal conflict. Process it before lower-level config and hook files when it appears in `adoptionConflicts`. For `AGENTS.md`, explicitly extract these categories when present:
@@ -109,6 +119,8 @@ Do not equate repo-specific wording with repo-specific essence. Many legacy inst
 - generated instruction regeneration commands that would overwrite repository-owned agent policy
 
 If the scaffold candidate would drop or contradict any extracted `AGENTS.md` rule, say that directly and classify each loss before proposing an install action. Do not summarize this as "repo-specific safety constraints" until you have tested whether each rule is a reusable scaffold guardrail, a variable, or an extension point.
+
+For `AGENTS.md`, the user-facing brief may group related extracted rules, but each group must still contain concrete sub-questions. If a group contains multiple rules, ask a continuation question that forces the adoption decision for the included details, not a single yes/no question for the whole group.
 
 ## Step 3 — Classify Findings
 
@@ -156,10 +168,12 @@ The user-facing checkpoint must be a grill-me style adoption interview, not a bl
 
 Before asking questions, give a short decision brief:
 - one sentence stating how many conflicts were inspected and whether checksums matched
-- 3-7 bullets for the highest-risk losses, behavior changes, or reusable lessons found
+- 3-7 bullets for the highest-risk losses, behavior changes, or reusable lessons found, with policy-artifact bullets naming the individual rule families instead of hiding them behind umbrella labels
 - a compact "my default if you agree" recommendation that separates upstream changes from local preservation and archive-only work
 
 Then ask only the questions that need human judgment. Do not ask the user to inspect your whole ledger. Do not present a wide matrix covering every conflict. Do not require the user to parse artifact-by-artifact tables before they can answer. Do not lead with "should I archive/install these files?" while unresolved upstream adoption decisions remain.
+
+For policy artifacts, the interview must be a continuation of the extraction, not a summary endpoint. After identifying a bundled loss, ask what to incorporate into upstream templates, variables, extension points, or local constraints for each distinct rule family. Never stop at a handy summary of the rules that would be lost.
 
 Good adoption-resolution questions are:
 - disposition-shaping: "Should this rule become universal scaffold behavior, stay local, or be archived?"
@@ -201,6 +215,26 @@ For `AGENTS.md` and similar policy artifacts, the internal inventory must still 
 - "Is this still required only for this repository?"
 - "Is this obsolete now that the scaffold has standardized the workflow?"
 - "Would installing the scaffold candidate as-is break or weaken behavior that `agent-bootstrap` should preserve?"
+
+Bad interview shape:
+
+```markdown
+- AGENTS.md would lose stricter repo rules: no auto commit/push, hook path ownership, stale runtime recovery, and no TODO trackers.
+
+Question: Should I preserve these locally?
+```
+
+Good interview shape:
+
+```markdown
+- AGENTS.md would lose six separate policy rules that may belong in different places: no session-close git actions, no tracker push, generated instruction ownership, hook path ownership, stale Beads runtime recovery, and tracker-only work ledgers.
+
+Questions:
+1. Should "no session-close git actions" become a universal scaffold rule, or stay local to this repository?
+2. Should tracker push prohibitions and generated-instruction ownership become Beads-specific scaffold guidance?
+3. Should stale runtime recovery be modeled as a clone-contract/runbook extension point, or kept as local operational guidance?
+4. Should "no markdown TODO trackers" become the universal tracker-only rule?
+```
 
 This interview checkpoint is mandatory even when you believe there are no upstream findings. If every finding looks obsolete/noise, say why in a few bullets and ask the user to confirm that archive-only conclusion. If a policy artifact has safety constraints and none are classified as upstream source change, scaffold variable/extension point, or project-local preserve, treat that as suspicious and re-run the line-item inventory before asking.
 
