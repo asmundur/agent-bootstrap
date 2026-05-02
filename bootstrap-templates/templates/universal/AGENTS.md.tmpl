@@ -145,6 +145,7 @@ These files live under `.claude/` even when you are using another tool. Reuse an
 - Keep terminology aligned with the glossary; update it when the domain language changes
 - Design around module boundaries and simple interfaces, especially for refactors
 - Implement in small red/green/refactor steps and stay within the fastest available feedback loop
+- When adding or debugging runtime environment variables, verify the full delivery path: documented env template, secret/project env source, deploy template interpolation, service/container injection, and application settings. Add or update a contract test so documented runtime variables cannot drift from the deployment service environment.
 - Get explicit user approval before committing changes
 - Run the full test suite before any commit — do not commit with failing tests
 - Prefer interface-level tests over tests of internal implementation details
