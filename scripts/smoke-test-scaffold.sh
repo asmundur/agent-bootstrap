@@ -24,6 +24,7 @@ require_text() {
 forbid_text() {
   local pattern="$1"
   local path="$2"
+  require_file "${path}"
   if rg -F --quiet "${pattern}" "${path}"; then
     echo "unexpected text in ${path}: ${pattern}" >&2
     exit 1
@@ -150,6 +151,29 @@ assert_bootstrap_prompt_cadence() {
   forbid_text "Next step: run /bootstrap in your agent harness" /tmp/scaffold-cadence-refresh.out
 
   rm -f /tmp/scaffold-cadence-first.out /tmp/scaffold-cadence-refresh.out
+}
+
+assert_beads_readiness_message_matches_status() {
+  if ! command -v bd >/dev/null 2>&1; then
+    echo "bd not found; skipping Beads readiness message smoke test"
+    return 0
+  fi
+
+  local tmp="$1"
+  local out="/tmp/scaffold-beads-readiness.out"
+
+  git -C "${tmp}" init -q
+  bash "${repo_root}/scripts/scaffold.sh" "${tmp}" "all" > "${out}"
+
+  if (cd "${tmp}" && bd status --json >/dev/null 2>&1); then
+    require_text "Beads bootstrap verified." "${out}"
+  else
+    require_text "Warning: scaffold files were written, but 'bd bootstrap --yes --json' did not complete successfully." "${out}"
+    require_text "Verify Beads readiness with: bd status --json" "${out}"
+    forbid_text "Beads bootstrap verified." "${out}"
+  fi
+
+  rm -f "${out}"
 }
 
 assert_drift_fails_loud() {
@@ -388,7 +412,7 @@ assert_state_accurate() {
     forbid_text "{{LINT_COMMAND}}" "${tmp}/AGENTS.md"
   fi
   jq -e '.stale_runtime_recovery.retry_probes | index("bd status --json") and index("bd ready --json")' "${tmp}/.beads/clone-contract.json" >/dev/null
-  forbid_text "{{LINT_COMMAND}}" "${tmp}/.claude/anti-patterns.md"
+  forbid_text "{{LINT_COMMAND}}" "${tmp}/.agents/anti-patterns.md"
 }
 
 assert_beads_partial_commit_guard() {
@@ -454,8 +478,10 @@ assert_beads_partial_commit_guard() {
 
 tmp_all=$(mktemp -d -t scaffold-smoke-all-XXXX)
 tmp_cadence=$(mktemp -d -t scaffold-smoke-cadence-XXXX)
-trap 'rm -rf "${tmp_all:-}" "${tmp_cadence:-}" "${tmp_cc:-}" "${tmp_adopt:-}" "${tmp_existing_beads:-}" "${tmp_resolved:-}"' EXIT
+tmp_beads_readiness=$(mktemp -d -t scaffold-smoke-beads-readiness-XXXX)
+trap 'rm -rf "${tmp_all:-}" "${tmp_cadence:-}" "${tmp_beads_readiness:-}" "${tmp_cc:-}" "${tmp_adopt:-}" "${tmp_existing_beads:-}" "${tmp_resolved:-}"' EXIT
 assert_bootstrap_prompt_cadence "${tmp_cadence}"
+assert_beads_readiness_message_matches_status "${tmp_beads_readiness}"
 run_scaffold "${tmp_all}" "all"
 assert_state_accurate "${tmp_all}" "all"
 assert_drift_fails_loud "${tmp_all}"
