@@ -58,9 +58,11 @@ This project uses [beads](https://github.com/steveyegge/beads) (`bd`) for task t
 
 ### Mandatory Gate — One Task Per Tracked Body of Work
 
-Use Beads for tracked work that changes project state: implementation, tests, docs, architecture artifacts, durable decisions, bug investigations that will produce follow-up work, and any multi-step task whose outcome should survive the chat.
+Default to no Beads task for conversational or read-only work. Use Beads only when there is a concrete tracked body of work whose outcome needs to survive the chat: implementation, tests, docs, architecture artifacts, durable decisions, bug investigations that will produce follow-up implementation, or a multi-step task with durable state.
 
-Do **not** create or claim Beads tasks just to talk about the codebase. Discussion, explanation, read-only exploration, lightweight review, command-output inspection, and agent/process retros should stay out of Beads unless the user explicitly asks to track them or they turn into an implementation/change task. If the user invokes a slash-command skill, load that skill first; its task-tracking rules override this default when they are more specific.
+Do **not** create or claim Beads tasks just to talk about the codebase, inspect command output, run a retro, answer a question, or decide whether work is needed. Discussion, explanation, read-only exploration, lightweight review, command-output inspection, and agent/process retros stay out of Beads unless the user explicitly asks to track them or they turn into an implementation/change task. If the user invokes a slash-command skill, load that skill first; its task-tracking rules override this default when they are more specific.
+
+Do **not** split bookkeeping into extra tasks. If investigation and a narrow fix are one coherent body of work, use one task. Create a discovered follow-up only for genuinely separate remaining work, not for the act of tracking, confirming, or finishing the current task.
 
 **Before starting any tracked body of work**, you must have a single claimed Beads task in hand. One task covers all the edits for that work.
 1. **Run `bd ready --json`** to inspect open tasks.
@@ -94,6 +96,8 @@ bd create "Concrete follow-up discovered while landing {{BEADS_PREFIX}}-123" \
   --deps discovered-from:{{BEADS_PREFIX}}-123 \
   --json
 ```
+
+Create follow-up issues sparingly: only when the new work is separable from the current task and should survive as its own future work item.
 
 **Complete work:**
 ```bash
