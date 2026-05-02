@@ -113,6 +113,10 @@ SOURCE_DIR="$(json_value "SOURCE_DIR" "not configured")"
 ARCHITECTURE_PATTERN="$(json_value "ARCHITECTURE_PATTERN" "not configured")"
 BEADS_PREFIX="$(json_value "BEADS_PREFIX" "$(inferred_beads_prefix)")"
 BEADS_BOOTSTRAP_COMMANDS_JSON="$(inferred_beads_bootstrap_commands_json)"
+BEADS_BOOTSTRAP_COMMANDS="$(jq -r '.[]' <<< "${BEADS_BOOTSTRAP_COMMANDS_JSON}")"
+if ! grep -Fxq "bd status --json" <<< "${BEADS_BOOTSTRAP_COMMANDS}"; then
+  BEADS_BOOTSTRAP_COMMANDS="${BEADS_BOOTSTRAP_COMMANDS}"$'\n'"bd status --json"
+fi
 BOOTSTRAP_DATE="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 
 export P_PROJECT_NAME="${PROJECT_NAME}"
@@ -129,6 +133,7 @@ export P_SOURCE_DIR="${SOURCE_DIR}"
 export P_ARCHITECTURE_PATTERN="${ARCHITECTURE_PATTERN}"
 export P_AGENT_HARNESS="${AGENT_HARNESS}"
 export P_BEADS_PREFIX="${BEADS_PREFIX}"
+export P_BEADS_BOOTSTRAP_COMMANDS="${BEADS_BOOTSTRAP_COMMANDS}"
 export P_BOOTSTRAP_DATE="${BOOTSTRAP_DATE}"
 
 replace_vars() {
@@ -153,6 +158,7 @@ replace_vars() {
     gsub(/\{\{ARCHITECTURE_PATTERN\}\}/, esc(ENVIRON["P_ARCHITECTURE_PATTERN"]))
     gsub(/\{\{AGENT_HARNESS\}\}/, esc(ENVIRON["P_AGENT_HARNESS"]))
     gsub(/\{\{BEADS_PREFIX\}\}/, esc(ENVIRON["P_BEADS_PREFIX"]))
+    gsub(/\{\{BEADS_BOOTSTRAP_COMMANDS\}\}/, esc(ENVIRON["P_BEADS_BOOTSTRAP_COMMANDS"]))
     gsub(/\{\{BOOTSTRAP_DATE\}\}/, esc(ENVIRON["P_BOOTSTRAP_DATE"]))
     print
   }' "$1"

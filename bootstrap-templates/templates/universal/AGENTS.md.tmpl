@@ -108,15 +108,15 @@ bd close <id> --reason "done" --json
 
 `.beads/issues.jsonl` is the git-tracked snapshot; the pre-commit hook refreshes it via `bd export --no-memories` and auto-stages changes, so task state travels with commits. Do not edit `.beads/issues.jsonl` by hand. Do not bypass the hook (`--no-verify`).
 
-Agents must not run `git add`, `git commit`, or `git push` as an automatic session-close workflow. Commits and pushes require explicit user approval for that action and scope.
+Agents must not run `git add`, `git commit`, or `git push` as an automatic session-close workflow. Do not run `bd dolt push` as session-close workflow. Commits and pushes require explicit user approval for that action and scope.
 
 Important: the presence of `.beads/config.yaml`, `.beads/clone-contract.json`, or `.githooks/pre-commit` does **not** by itself prove that the local Beads database has been bootstrapped. Treat “files scaffolded” and “tool operational” as separate states.
 
 - Fresh clones must bootstrap local Beads state from `.beads/issues.jsonl`:
 ```bash
-bd bootstrap --yes --json
-bd status --json
+{{BEADS_BOOTSTRAP_COMMANDS}}
 ```
+- `.githooks/` is the only supported git hook path for this repository.
 - Machine consumers should read `.beads/clone-contract.json` instead of inferring readability from `.beads/metadata.json`.
 - If local Beads runtime state is stale, confirm `git config --get core.hooksPath` points at `.githooks`, remove stale local pins such as `.beads/dolt-server.port`, clear stale `dolt-server.*` lock/log artifacts only when no live process owns them, then rerun `bd status --json` or `bd ready --json`.
 - Do not create markdown TODO trackers or side ledgers for net-new work. Use the project task tracker.
