@@ -39,6 +39,18 @@ After applying the scaffold, run `/bootstrap`. That skill inspects the existing 
 
 Re-run `scripts/scaffold.sh` whenever you want to pull the latest forward scaffold changes into the project. It is the only forward refresh path.
 
+## Slash-Command Skills
+
+When the user invokes a slash command such as `/feature-start`, `/retro`, or `/tdd`, resolve and load the project-local skill before planning, task tracking, or implementation. Treat the system-provided skill list as a fallback, not as exhaustive.
+
+Resolution order:
+1. Current harness skill directory: `.codex/skills/<command>.md`, `.claude/skills/<command>.md`, or `.antigravity/skills/<command>.md`
+2. Other generated skill directories for the same command
+3. Related workflow docs such as `.claude/workflows/feature-workflow.md`
+4. Built-in or system-provided skill instructions
+
+The local skill's rules override the default Beads gate when they are more specific. In particular, `/feature-start` is a planning-only workflow: load the skill, produce the feature spec, present the implementation contract, and stop for explicit user approval before writing code.
+
 ## Project-Specific Safety Constraints
 
 Use this section only for constraints that remain genuinely local after `/resolve-adopted-artifacts` has separated universal workflow rules from repository-specific values. Promote general agent-workflow lessons to the upstream scaffold templates instead of storing them here. Keep any local constraints concrete: exact commands, paths, protected files, or operational contracts.
