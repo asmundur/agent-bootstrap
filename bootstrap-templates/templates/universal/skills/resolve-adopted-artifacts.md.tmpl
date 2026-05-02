@@ -49,7 +49,7 @@ Backward compatibility: if a conflict row uses the older `preservedBackup` shape
 For each conflict, read:
 - the active legacy file currently at `target`
 - the scaffold replacement at `scaffoldCandidate`
-- relevant local context such as `.claude/context/ubiquitous-language.md`, `.claude/architecture/module-map.md`, and the relevant feature spec when useful
+- relevant local context such as `.agents/context/ubiquitous-language.md`, `.agents/architecture/module-map.md`, and the relevant feature spec when useful
 
 Use the `grill-me` method on the artifacts first:
 - what value did the legacy file provide?
@@ -244,7 +244,7 @@ Keep the checkpoint concise enough to answer. Avoid tables unless there are at m
 
 **Stop and get user approval before writing any upstream source changes, archiving legacy artifacts, installing scaffold candidates, or removing `adoptionConflicts`.**
 
-When approved, make upstream changes in the `agent-bootstrap` repository when that source is available. Generated local `.claude/`, `.codex/`, and `.antigravity/` files are not the source of truth. Refresh generated copies only when explicitly requested or when the accepted scope requires it, and report every generated file changed.
+When approved, make upstream changes in the `agent-bootstrap` repository when that source is available. Generated local `.agents/`, `.claude/`, `.codex/`, and `.antigravity/` files are not the source of truth. Refresh generated copies only when explicitly requested or when the accepted scope requires it, and report every generated file changed.
 
 ## Step 5 — Apply Upstream Changes, Then Archive And Install
 

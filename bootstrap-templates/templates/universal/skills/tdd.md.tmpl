@@ -16,9 +16,11 @@ Work in strict red/green/refactor cycles:
 ## Required Inputs
 
 Before starting, read:
-- The approved `.claude/plans/<feature-slug>.md`
-- `.claude/context/ubiquitous-language.md` when it exists
-- `.claude/architecture/module-map.md` when it exists
+- The approved `.agents/plans/<feature-slug>.md`
+- `.agents/context/ubiquitous-language.md` when it exists
+- `.agents/architecture/module-map.md` when it exists
+
+If the approved spec or shared context still exists only under legacy `.claude/...` paths, read it as migration evidence and keep new updates under `.agents/`.
 
 ## Feedback Loops
 

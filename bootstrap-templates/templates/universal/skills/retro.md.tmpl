@@ -10,7 +10,7 @@ The point of `/retro` is not to produce a recap. The point is to improve future 
 - When the retro is about agent/process behavior and the user has not requested tracked implementation work, do not create, claim, close, or modify Beads issues. Produce the retro and stop at the template-propagation approval checkpoint.
 - If the retro will make new tracked-file changes after approval, use an existing relevant task only when the user wants that work tracked. Otherwise, make the approved template changes without introducing task-log noise.
 - For scaffold, workflow, or agent-behavior retros, lead with the failure mode and the corrective change. Keep evidence brief and only as detailed as needed to justify the change.
-- When a finding is universal, template propagation targets the upstream `agent-bootstrap` repository's `bootstrap-templates/templates/universal/` tree. In a scaffolded project, look for that upstream source through `.agent-scaffold.json.templateSource`, a sibling `../agent-bootstrap`, or the path the user provides. Do not stop after editing generated local `.claude/`, `.codex/`, or `.antigravity/` copies.
+- When a finding is universal, template propagation targets the upstream `agent-bootstrap` repository's `bootstrap-templates/templates/universal/` tree. In a scaffolded project, look for that upstream source through `.agent-scaffold.json.templateSource`, a sibling `../agent-bootstrap`, or the path the user provides. Do not stop after editing generated local `.agents/`, `.claude/`, `.codex/`, or `.antigravity/` copies.
 - Generated scaffold files may be refreshed after the upstream template changes, but generated files are not the source of truth.
 
 ## Phase 1 — Load Context
@@ -21,9 +21,11 @@ git branch --show-current
 ```
 
 Read these files when they exist before you ask retrospective questions:
-- `.claude/context/ubiquitous-language.md`
-- `.claude/architecture/module-map.md`
-- `.claude/plans/` for the relevant feature spec
+- `.agents/context/ubiquitous-language.md`
+- `.agents/architecture/module-map.md`
+- `.agents/plans/` for the relevant feature spec
+
+If the relevant artifacts still exist only under legacy `.claude/...` paths, read them as migration evidence and target `.agents/...` for new shared updates.
 
 Default scope:
 - if the user names a feature, branch, issue, commit range, or session, use that
@@ -104,7 +106,7 @@ Also classify whether the failure came from:
 For each finding, ask: *"Would this improvement help ANY project using this bootstrap, or only {{PROJECT_NAME}}?"*
 
 - **Universal** → candidate for template propagation
-- **Project-specific** → add to local `.claude/anti-patterns.md` only
+- **Project-specific** → add to local `.agents/anti-patterns.md` only
 
 Exclude findings that are:
 - Generic best practices already known
@@ -123,11 +125,11 @@ Produce a prioritized list:
 
 | Priority | Finding | Action | Target File |
 |---|---|---|---|
-| High | ... | Add anti-pattern entry | `.claude/anti-patterns.md` |
-| High | ... | Update glossary | `.claude/context/ubiquitous-language.md` |
-| High | ... | Update module map | `.claude/architecture/module-map.md` |
-| Medium | ... | Update workflow checkpoint | `.claude/workflows/feature-workflow.md` |
-| Low | ... | Clarify agent instructions | `.claude/agents/feature-implementation.md` |
+| High | ... | Add anti-pattern entry | `.agents/anti-patterns.md` |
+| High | ... | Update glossary | `.agents/context/ubiquitous-language.md` |
+| High | ... | Update module map | `.agents/architecture/module-map.md` |
+| Medium | ... | Update workflow checkpoint | `.agents/workflows/feature-workflow.md` |
+| Low | ... | Clarify provider-specific agent instructions | `.claude/agents/feature-implementation.md` or equivalent harness file |
 
 If terminology or module boundaries changed, propose the concrete updates to the local glossary or module map as part of the retrospective output. These local artifact updates are project maintenance, not template propagation.
 

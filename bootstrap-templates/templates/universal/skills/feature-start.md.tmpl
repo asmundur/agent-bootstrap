@@ -11,8 +11,10 @@ Produce a fully-specified, user-approved feature spec and implementation contrac
 Before asking questions, load the durable project context when it exists:
 
 - `.agent-scaffold.json`
-- `.claude/context/ubiquitous-language.md`
-- `.claude/architecture/module-map.md`
+- `.agents/context/ubiquitous-language.md`
+- `.agents/architecture/module-map.md`
+
+If the repository only has legacy `.claude/context/`, `.claude/architecture/`, or `.claude/plans/` artifacts, read them as migration evidence and write the canonical spec/context updates under `.agents/`.
 
 Then explore the codebase to understand:
 - Where similar features live in `{{SOURCE_DIR}}`
@@ -27,7 +29,7 @@ If the request is ambiguous, has multiple reasonable designs, or touches module 
 
 ## Stage 1 — Define the Feature Spec
 
-Create or update `.claude/plans/<feature-slug>.md` with:
+Create or update `.agents/plans/<feature-slug>.md` with:
 
 - Summary
 - Goal and non-goals
@@ -70,7 +72,7 @@ Present to the user:
 - Acceptance criteria
 - Implementation slices
 - Estimated scope (number of files, rough complexity)
-- Spec path: `.claude/plans/<feature-slug>.md`
+- Spec path: `.agents/plans/<feature-slug>.md`
 
 **Stop here and wait for explicit approval before proceeding.**
 

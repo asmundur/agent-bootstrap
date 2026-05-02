@@ -26,7 +26,8 @@ cd "${TARGET_DIR}"
 
 echo "Applying scaffold in $(pwd)..."
 
-mkdir -p .claude/agents .claude/architecture .claude/context .claude/plans .claude/skills .claude/workflows
+mkdir -p .agents/architecture .agents/context .agents/plans .agents/workflows
+mkdir -p .claude/agents .claude/skills
 mkdir -p .codex/skills
 mkdir -p .antigravity/skills
 mkdir -p .beads
@@ -535,7 +536,7 @@ merge_pre_commit_local_commands() {
 
 verify_existing_adoption_conflicts
 
-copy_template "anti-patterns.md.tmpl" ".claude/anti-patterns.md" "config"
+copy_template "anti-patterns.md.tmpl" ".agents/anti-patterns.md" "config"
 copy_template "agents/feature-implementation.md.tmpl" ".claude/agents/feature-implementation.md" "agent"
 copy_template "agents/git-manager.md.tmpl" ".claude/agents/git-manager.md" "agent"
 
@@ -543,7 +544,7 @@ for skill in bootstrap grill-me ubiquitous-language improve-architecture tdd fea
   copy_template "skills/${skill}.md.tmpl" ".claude/skills/${skill}.md" "skill"
 done
 
-copy_template "workflows/feature-workflow.md.tmpl" ".claude/workflows/feature-workflow.md" "workflow"
+copy_template "workflows/feature-workflow.md.tmpl" ".agents/workflows/feature-workflow.md" "workflow"
 
 copy_template "beads/config.yaml.tmpl" ".beads/config.yaml" "beads"
 copy_beads_clone_contract
@@ -588,7 +589,7 @@ if [[ "${AGENT_HARNESS}" == "all" || "${AGENT_HARNESS}" == "claude-code" ]]; the
   if [[ "${AGENT_HARNESS}" == "all" ]]; then
     P_AGENTS_IMPORT="@AGENTS.md\n\n"
   else
-    P_OVERVIEW_SECTION="\n## Project Overview\n\n${P_PROJECT_DESCRIPTION}\n\n- **Tech Stack:** ${P_TECH_STACK}\n- **Language:** ${P_MAIN_LANGUAGE}\n- **Source Directory:** ${P_SOURCE_DIR}\n- **Architecture:** ${P_ARCHITECTURE_PATTERN}\n\n## Essential Commands\n\n\`\`\`bash\n# Build\n${P_BUILD_COMMAND}\n\n# Typecheck (optional)\n${P_TYPECHECK_COMMAND}\n\n# Lint (optional)\n${P_LINT_COMMAND}\n\n# Browser verification (optional)\n${P_BROWSER_VERIFY_COMMAND}\n\n# Test\n${P_TEST_COMMAND}\n\n# Run\n${P_RUN_COMMAND}\n\`\`\`\n\n## Architecture & Key Patterns\n\n${P_ARCHITECTURE_PATTERN}\n\nRun \`/bootstrap\` after applying the scaffold so these values can be hydrated from the existing codebase.\n\n## Durable Artifacts\n\n- **Feature specs:** \`.claude/plans/<feature-slug>.md\`\n- **Ubiquitous language:** \`.claude/context/ubiquitous-language.md\`\n- **Module map:** \`.claude/architecture/module-map.md\`\n\nThese files are created or refreshed by the generated skills.\n\n## Code Style Guidelines\n\n- Match the style of surrounding code\n- Functions should do one thing\n- Name things for what they are, not how they're implemented\n- Validate at system boundaries (user input, external APIs) — trust internal code\n- No dead code, no commented-out blocks, no TODO left behind after a feature\n- Tests are not optional\n\n## Task Tracking — Beads\n\nThis project uses [beads](https://github.com/steveyegge/beads) (\`bd\`) for task tracking. Issue prefix: \`${P_BEADS_PREFIX}\`.\n\nBefore starting new work:\n    bd ready --json\n    bd update <id> --claim --json\n\nCreating a task:\n    bd create --title \"...\" -p 2 --json\n\nClosing a task:\n    bd close <id> --reason \"done\" --json\n\n\`.beads/issues.jsonl\` is the git-tracked snapshot; the pre-commit hook refreshes it via \`bd export --no-memories\` and auto-stages changes, so task state travels with commits. Do not edit \`.beads/issues.jsonl\` by hand. Do not bypass the hook (\`--no-verify\`).\n"
+    P_OVERVIEW_SECTION="\n## Project Overview\n\n${P_PROJECT_DESCRIPTION}\n\n- **Tech Stack:** ${P_TECH_STACK}\n- **Language:** ${P_MAIN_LANGUAGE}\n- **Source Directory:** ${P_SOURCE_DIR}\n- **Architecture:** ${P_ARCHITECTURE_PATTERN}\n\n## Essential Commands\n\n\`\`\`bash\n# Build\n${P_BUILD_COMMAND}\n\n# Typecheck (optional)\n${P_TYPECHECK_COMMAND}\n\n# Lint (optional)\n${P_LINT_COMMAND}\n\n# Browser verification (optional)\n${P_BROWSER_VERIFY_COMMAND}\n\n# Test\n${P_TEST_COMMAND}\n\n# Run\n${P_RUN_COMMAND}\n\`\`\`\n\n## Architecture & Key Patterns\n\n${P_ARCHITECTURE_PATTERN}\n\nRun \`/bootstrap\` after applying the scaffold so these values can be hydrated from the existing codebase.\n\n## Durable Artifacts\n\n- **Feature specs:** \`.agents/plans/<feature-slug>.md\`\n- **Ubiquitous language:** \`.agents/context/ubiquitous-language.md\`\n- **Module map:** \`.agents/architecture/module-map.md\`\n\nThese provider-neutral files are created or refreshed by the generated skills.\n\n## Code Style Guidelines\n\n- Match the style of surrounding code\n- Functions should do one thing\n- Name things for what they are, not how they're implemented\n- Validate at system boundaries (user input, external APIs) — trust internal code\n- No dead code, no commented-out blocks, no TODO left behind after a feature\n- Tests are not optional\n\n## Task Tracking — Beads\n\nThis project uses [beads](https://github.com/steveyegge/beads) (\`bd\`) for task tracking. Issue prefix: \`${P_BEADS_PREFIX}\`.\n\nBefore starting new work:\n    bd ready --json\n    bd update <id> --claim --json\n\nCreating a task:\n    bd create --title \"...\" -p 2 --json\n\nClosing a task:\n    bd close <id> --reason \"done\" --json\n\n\`.beads/issues.jsonl\` is the git-tracked snapshot; the pre-commit hook refreshes it via \`bd export --no-memories\` and auto-stages changes, so task state travels with commits. Do not edit \`.beads/issues.jsonl\` by hand. Do not bypass the hook (\`--no-verify\`).\n"
   fi
 
   tmp_claude="$(mktemp "${TMPDIR:-/tmp}/scaffold-claude.XXXXXX")"

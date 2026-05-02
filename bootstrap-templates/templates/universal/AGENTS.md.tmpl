@@ -46,7 +46,7 @@ When the user invokes a slash command such as `/feature-start`, `/retro`, or `/t
 Resolution order:
 1. Current harness skill directory: `.codex/skills/<command>.md`, `.claude/skills/<command>.md`, or `.antigravity/skills/<command>.md`
 2. Other generated skill directories for the same command
-3. Related workflow docs such as `.claude/workflows/feature-workflow.md`
+3. Related workflow docs such as `.agents/workflows/feature-workflow.md`
 4. Built-in or system-provided skill instructions
 
 The local skill's rules override the default Beads gate when they are more specific. In particular, `/feature-start` is a planning-only workflow: load the skill, produce the feature spec, present the implementation contract, and stop for explicit user approval before writing code.
@@ -145,18 +145,19 @@ If the unit of work changed any git-tracked files, the handoff must include a me
 
 ## Durable Artifacts
 
-- **Feature specs:** `.claude/plans/<feature-slug>.md`
-- **Ubiquitous language:** `.claude/context/ubiquitous-language.md`
-- **Module map:** `.claude/architecture/module-map.md`
+- **Feature specs:** `.agents/plans/<feature-slug>.md`
+- **Ubiquitous language:** `.agents/context/ubiquitous-language.md`
+- **Module map:** `.agents/architecture/module-map.md`
 
-These files live under `.claude/` even when you are using another tool. Reuse and update them instead of recreating design context from scratch.
+These files live under `.agents/` so every supported agent provider shares the same project memory. Reuse and update them instead of recreating design context from scratch in provider-specific folders.
+If a repository still has legacy `.claude/plans/`, `.claude/context/`, or `.claude/architecture/` artifacts without `.agents/` equivalents, read them as migration evidence, then write the canonical updated artifact under `.agents/`.
 
 ## Working Agreements
 
 - Explore the codebase and understand existing patterns before implementing anything
 - Reach a shared design concept before writing code; ambiguous work should go through a grilling/interview phase first
 - Plan and confirm acceptance criteria with the user before writing code
-- Write or update a feature spec in `.claude/plans/` before implementation starts
+- Write or update a feature spec in `.agents/plans/` before implementation starts
 - Load the ubiquitous-language glossary and module map when present before planning or implementation
 - Keep terminology aligned with the glossary; update it when the domain language changes
 - Design around module boundaries and simple interfaces, especially for refactors

@@ -5,7 +5,7 @@ Hard constraints for all agents working on {{PROJECT_NAME}}. These are non-negot
 ## Workflow Anti-Patterns
 
 - **Implementing without accepted criteria** — Always get explicit user approval on what "done" means before writing code. Use Given/When/Then format.
-- **Implementing without a shared design concept** — Resolve the important design decisions first and capture them in `.claude/plans/<feature-slug>.md`.
+- **Implementing without a shared design concept** — Resolve the important design decisions first and capture them in `.agents/plans/<feature-slug>.md`.
 - **Skipping the planning stage** — Stage 1 exists to avoid wasted implementation effort. Never jump straight to code.
 - **Treating built-in skill listings as exhaustive** — When the user invokes a slash command, load the project-local skill from `.codex/skills/`, `.claude/skills/`, or `.antigravity/skills/` before acting. Local slash-command rules are the workflow contract.
 - **Ignoring the glossary or module map when they exist** — Shared language and module boundaries are part of the source of truth for future changes.
