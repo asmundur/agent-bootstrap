@@ -35,9 +35,9 @@ If a feedback-loop command is set to `not configured`, skip it. Otherwise, use t
 
 ## Scaffold Hydration
 
-After applying the scaffold, run `/bootstrap`. That skill inspects the existing repository, derives project-specific values, updates `.agent-scaffold.json`, and deterministically refreshes scaffolded docs/config through the scaffold renderer where those values are used.
+Run `/bootstrap` after first scaffold adoption, or when project-specific scaffold values need intentional re-hydration. That skill inspects the existing repository, derives project-specific values, updates `.agent-scaffold.json`, and deterministically refreshes scaffolded docs/config through the scaffold renderer where those values are used.
 
-Re-run `scripts/scaffold.sh` whenever you want to pull the latest forward scaffold changes into the project. It is the only forward refresh path.
+Re-run `scripts/scaffold.sh` whenever you want to pull the latest forward scaffold changes into the project. It is the only forward refresh path; routine scaffold refreshes do not require `/bootstrap` unless project facts need to be re-read from the codebase.
 
 ## Code Style Guidelines
 

@@ -122,9 +122,10 @@ require_text "Project-Specific Safety Constraints" "bootstrap-templates/template
 require_text "Agents must not run \`git add\`, \`git commit\`, or \`git push\` as an automatic session-close workflow." "bootstrap-templates/templates/universal/AGENTS.md.tmpl"
 require_text "If local Beads runtime state is stale" "bootstrap-templates/templates/universal/AGENTS.md.tmpl"
 require_text "Do not create markdown TODO trackers or side ledgers for net-new work." "bootstrap-templates/templates/universal/AGENTS.md.tmpl"
+require_text "routine scaffold refreshes do not require \`/bootstrap\`" "bootstrap-templates/templates/universal/AGENTS.md.tmpl"
 require_text "stale_runtime_recovery" "bootstrap-templates/templates/universal/beads/clone-contract.json.tmpl"
 require_text "Stage 0 — Shared Design Alignment" "bootstrap-templates/templates/universal/workflows/feature-workflow.md.tmpl"
-require_text 'Create or update `.claude/context/ubiquitous-language.md`' "bootstrap-templates/templates/universal/skills/ubiquitous-language.md.tmpl"
+require_text 'Create or update `.agents/context/ubiquitous-language.md`' "bootstrap-templates/templates/universal/skills/ubiquitous-language.md.tmpl"
 require_text "pre-commit.local" "bootstrap-templates/templates/universal/githooks/pre-commit"
 require_text "git ls-files -- .beads/" "bootstrap-templates/templates/universal/githooks/beads-pre-commit.sh"
 forbid_text "/sync-bootstrap" ".claude/CLAUDE.md"
@@ -134,6 +135,21 @@ run_scaffold() {
   local agent_harness="$2"
   mkdir -p "${tmp}"
   bash "${repo_root}/scripts/scaffold.sh" "${tmp}" "${agent_harness}" >/dev/null
+}
+
+assert_bootstrap_prompt_cadence() {
+  local tmp="$1"
+  mkdir -p "${tmp}"
+
+  bash "${repo_root}/scripts/scaffold.sh" "${tmp}" "all" >/tmp/scaffold-cadence-first.out
+  require_text "Next step: run /bootstrap in your agent harness to hydrate project-specific values from the codebase." /tmp/scaffold-cadence-first.out
+
+  bash "${repo_root}/scripts/scaffold.sh" "${tmp}" "all" >/tmp/scaffold-cadence-refresh.out
+  require_text "Scaffold refresh complete." /tmp/scaffold-cadence-refresh.out
+  require_text "Run /bootstrap only if project-specific scaffold values need to be re-hydrated from the codebase." /tmp/scaffold-cadence-refresh.out
+  forbid_text "Next step: run /bootstrap in your agent harness" /tmp/scaffold-cadence-refresh.out
+
+  rm -f /tmp/scaffold-cadence-first.out /tmp/scaffold-cadence-refresh.out
 }
 
 assert_drift_fails_loud() {
@@ -367,6 +383,7 @@ assert_state_accurate() {
     require_text "Agents must not run \`git add\`, \`git commit\`, or \`git push\` as an automatic session-close workflow." "${tmp}/AGENTS.md"
     require_text "If local Beads runtime state is stale" "${tmp}/AGENTS.md"
     require_text "Do not create markdown TODO trackers or side ledgers for net-new work." "${tmp}/AGENTS.md"
+    require_text "routine scaffold refreshes do not require \`/bootstrap\`" "${tmp}/AGENTS.md"
     forbid_text "{{BUILD_COMMAND}}" "${tmp}/AGENTS.md"
     forbid_text "{{LINT_COMMAND}}" "${tmp}/AGENTS.md"
   fi
@@ -436,7 +453,9 @@ assert_beads_partial_commit_guard() {
 }
 
 tmp_all=$(mktemp -d -t scaffold-smoke-all-XXXX)
-trap 'rm -rf "${tmp_all:-}" "${tmp_cc:-}" "${tmp_adopt:-}" "${tmp_existing_beads:-}" "${tmp_resolved:-}"' EXIT
+tmp_cadence=$(mktemp -d -t scaffold-smoke-cadence-XXXX)
+trap 'rm -rf "${tmp_all:-}" "${tmp_cadence:-}" "${tmp_cc:-}" "${tmp_adopt:-}" "${tmp_existing_beads:-}" "${tmp_resolved:-}"' EXIT
+assert_bootstrap_prompt_cadence "${tmp_cadence}"
 run_scaffold "${tmp_all}" "all"
 assert_state_accurate "${tmp_all}" "all"
 assert_drift_fails_loud "${tmp_all}"

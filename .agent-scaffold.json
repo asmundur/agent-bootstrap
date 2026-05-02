@@ -41,7 +41,7 @@
     { "target": ".githooks/_common.sh", "source": "githooks/_common.sh", "category": "hook", "checksum": "49ec38b6c5692dd7a36a9cf4454f03c73babccb2218f5cb93fa22033151ebedc" },
     { "target": ".githooks/beads-pre-commit.sh", "source": "githooks/beads-pre-commit.sh", "category": "hook", "checksum": "eb51e9eca9cad08cc980589c3704b21bcfe5d3007d5c4d197854b6deca257462" },
     { "target": ".githooks/pre-commit", "source": "githooks/pre-commit", "category": "hook", "checksum": "103ca31eef78d4462116d67248f340d65f1da11c7cb90bf2ecd32350458a814a" },
-    { "target": "AGENTS.md", "source": "AGENTS.md.tmpl", "category": "config", "checksum": "ef93db5310ae12a27c9635c36f9bba9bfd6b81d63b2297fd1f7f1ef6743ccbde" },
+    { "target": "AGENTS.md", "source": "AGENTS.md.tmpl", "category": "config", "checksum": "daefc466f071f8ed380eab1df5d37716a726f40f179562a830e49164b7841316" },
     { "target": ".codex/skills/bootstrap.md", "source": "skills/bootstrap.md.tmpl", "category": "skill", "checksum": "3b19c75803787df4be81f8dae5fede2b0af3a3944abca4d999157a6d5577d634" },
     { "target": ".antigravity/skills/bootstrap.md", "source": "skills/bootstrap.md.tmpl", "category": "skill", "checksum": "3b19c75803787df4be81f8dae5fede2b0af3a3944abca4d999157a6d5577d634" },
     { "target": ".codex/skills/grill-me.md", "source": "skills/grill-me.md.tmpl", "category": "skill", "checksum": "3d0d69153ed15a700d3ddbfefc2c4ca183b7c9f25f84dc10ce9b7c84757658bc" },

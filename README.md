@@ -62,7 +62,7 @@ Or specify the target directory and harness explicitly:
 /path/to/agent-bootstrap/scripts/scaffold.sh [target-dir] [all|claude-code|codex|antigravity]
 ```
 
-After scaffolding, run the generated `/bootstrap` skill in the target repository. That step is responsible for reading the repository and hydrating project-specific values into the scaffold.
+After first scaffold adoption, run the generated `/bootstrap` skill in the target repository. That step is responsible for reading the repository and hydrating project-specific values into the scaffold. Later scaffold refreshes do not require `/bootstrap` unless project facts need to be re-read from the codebase.
 
 If the scaffold preserved pre-existing files as `*.pre-scaffold.*`, resolve them before the next refresh with `/resolve-adopted-artifacts`.
 
