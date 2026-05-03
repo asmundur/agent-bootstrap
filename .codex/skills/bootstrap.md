@@ -85,9 +85,9 @@ Treat the refresh as two layers of source of truth:
 2. the scaffold templates for scaffold-managed file shapes
 
 Do not treat project-local working artifacts as scaffold-managed:
-- `.claude/plans/`
-- `.claude/context/`
-- `.claude/architecture/`
+- `.agents/plans/`
+- `.agents/context/`
+- `.agents/architecture/`
 - `.beads/issues.jsonl`
 
 Also do not treat scaffold presence as proof that operational tooling is initialized. For example, `.beads/config.yaml`, `.beads/clone-contract.json`, and `.githooks/pre-commit` can exist before the local Beads database has actually been bootstrapped.
@@ -95,10 +95,11 @@ Also do not treat scaffold presence as proof that operational tooling is initial
 ## Step 5 — Produce Or Refresh Project-Local Working Artifacts
 
 When the evidence supports it, create or refresh:
-- `.claude/context/ubiquitous-language.md`
-- `.claude/architecture/module-map.md`
+- `.agents/context/ubiquitous-language.md`
+- `.agents/architecture/module-map.md`
 
 These are project-local working artifacts. They are informed by the scaffold, but they are not the scaffold itself.
+If legacy `.claude/context/` or `.claude/architecture/` artifacts already exist and no `.agents/` equivalent exists, preserve their content by migrating or copying it into `.agents/` before updating it.
 
 ## Step 6 — Verify Operational Readiness
 

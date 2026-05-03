@@ -31,7 +31,7 @@ Avoid shallow-module churn:
 
 ## Step 3 — Write or Update the Module Map
 
-Create or update `.claude/architecture/module-map.md` with:
+Create or update `.agents/architecture/module-map.md` with:
 - Module name
 - Purpose
 - Public interface

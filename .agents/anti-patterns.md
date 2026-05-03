@@ -5,14 +5,16 @@ Hard constraints for all agents working on agent-bootstrap. These are non-negoti
 ## Workflow Anti-Patterns
 
 - **Implementing without accepted criteria** — Always get explicit user approval on what "done" means before writing code. Use Given/When/Then format.
-- **Implementing without a shared design concept** — Resolve the important design decisions first and capture them in `.claude/plans/<feature-slug>.md`.
+- **Implementing without a shared design concept** — Resolve the important design decisions first and capture them in `.agents/plans/<feature-slug>.md`.
 - **Skipping the planning stage** — Stage 1 exists to avoid wasted implementation effort. Never jump straight to code.
+- **Treating built-in skill listings as exhaustive** — When the user invokes a slash command, load the project-local skill from `.codex/skills/`, `.claude/skills/`, or `.antigravity/skills/` before acting. Local slash-command rules are the workflow contract.
 - **Ignoring the glossary or module map when they exist** — Shared language and module boundaries are part of the source of truth for future changes.
 - **Allowing term drift** — If the code, docs, and conversations start using different names for the same concept, update the ubiquitous language before proceeding.
 - **Committing without running tests** — `not configured` must pass before any commit. No exceptions.
 - **Creating commits without user review** — Stage 2.5 human review is mandatory. Never skip it.
 - **Force-pushing or hard-resetting** — These are destructive. Ask the user first.
 - **Bypassing hooks** — Never run `git commit --no-verify` — it skips the beads task handoff.
+- **Creating task-tracking noise** — Do not create Beads tasks for discussion, read-only inspection, retros, or task-management bookkeeping. One coherent body of work gets one task; follow-ups are only for separate future work.
 - **Treating scaffold presence as proof that tooling is ready** — Generated files and hook scripts are not the same thing as a bootstrapped local tool state. Verify operational readiness explicitly.
 - **Ending tracked-file work without a commit message handoff** — If git-tracked files changed, the handoff must include a meaningful, high-signal conventional commit message.
 

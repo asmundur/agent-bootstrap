@@ -6,15 +6,15 @@ This document defines the design-first feature development pipeline. It is refer
 
 ## Stage 0 — Shared Design Alignment (Interactive)
 
-**Skills:** `.claude/skills/feature-start.md`, `.claude/skills/grill-me.md`
+**Skills:** current harness `/feature-start` and `/grill-me`
 **Mode:** Interactive with user
-**Agent:** Main Claude instance
+**Agent:** Current agent instance
 
 Goals:
-- Load `.claude/context/ubiquitous-language.md` and `.claude/architecture/module-map.md` when they exist
+- Load `.agents/context/ubiquitous-language.md` and `.agents/architecture/module-map.md` when they exist
 - Reach a shared design concept for the feature
 - Resolve high-impact decisions or explicitly park them
-- Record the decisions in `.claude/plans/<feature-slug>.md`
+- Record the decisions in `.agents/plans/<feature-slug>.md`
 - For debugging and CI work, identify the failure ownership boundary and compare last passing vs first failing state before proposing fixes
 
 **Exit condition:** The important design decisions have been resolved or clearly parked.
@@ -23,9 +23,9 @@ Goals:
 
 ## Stage 1 — Feature Spec & Approval (Interactive)
 
-**Skill:** `.claude/skills/feature-start.md`
+**Skill:** current harness `/feature-start`
 **Mode:** Interactive with user
-**Agent:** Main Claude instance
+**Agent:** Current agent instance
 
 Goals:
 - Clarify the feature request
@@ -57,12 +57,12 @@ Goals:
 
 ## Stage 2 — Implementation
 
-**Agent:** Feature-Implementation (`.claude/agents/feature-implementation.md`)
-**Model:** claude-sonnet-4-6
+**Agent:** Implementation agent for the current harness
+**Model:** Current harness default unless an implementation-specific model is explicitly configured
 **Mode:** Autonomous (no user interaction)
 
 The agent will:
-1. Read `.claude/anti-patterns.md`
+1. Read `.agents/anti-patterns.md`
 2. Read the approved feature spec and load the glossary / module map when present
 3. Explore identified files to understand patterns
 4. Implement the feature in red/green/refactor slices
@@ -92,8 +92,8 @@ Present the diff to the user and ask: "Ready to commit? Approve to continue to S
 
 ## Stage 3 — Commit
 
-**Agent:** Git-Manager (`.claude/agents/git-manager.md`)
-**Model:** claude-haiku-4-5-20251001
+**Agent:** Git manager for the current harness
+**Model:** Current harness default unless a git-management model is explicitly configured
 **Mode:** Autonomous
 
 The agent will:

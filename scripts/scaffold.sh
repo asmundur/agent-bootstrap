@@ -540,7 +540,7 @@ copy_template "anti-patterns.md.tmpl" ".agents/anti-patterns.md" "config"
 copy_template "agents/feature-implementation.md.tmpl" ".claude/agents/feature-implementation.md" "agent"
 copy_template "agents/git-manager.md.tmpl" ".claude/agents/git-manager.md" "agent"
 
-for skill in bootstrap grill-me ubiquitous-language improve-architecture tdd feature-start retro resolve-adopted-artifacts fabricate-beads-history; do
+for skill in bootstrap grill-me ubiquitous-language improve-architecture tdd feature-start retro resolve-adopted-artifacts audit-beads-quality; do
   copy_template "skills/${skill}.md.tmpl" ".claude/skills/${skill}.md" "skill"
 done
 
@@ -572,7 +572,7 @@ fi
 
 if [[ "${AGENT_HARNESS}" == "all" || "${AGENT_HARNESS}" == "codex" || "${AGENT_HARNESS}" == "antigravity" ]]; then
   copy_template "AGENTS.md.tmpl" "AGENTS.md" "config"
-  for skill in bootstrap grill-me ubiquitous-language improve-architecture tdd feature-start retro resolve-adopted-artifacts fabricate-beads-history; do
+  for skill in bootstrap grill-me ubiquitous-language improve-architecture tdd feature-start retro resolve-adopted-artifacts audit-beads-quality; do
     if [[ "${AGENT_HARNESS}" == "all" || "${AGENT_HARNESS}" == "codex" ]]; then
       copy_template "skills/${skill}.md.tmpl" ".codex/skills/${skill}.md" "skill"
     fi

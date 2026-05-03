@@ -16,9 +16,11 @@ Use this skill when:
 
 Before you ask questions, read these files when they exist:
 - `.agent-scaffold.json`
-- `.claude/context/ubiquitous-language.md`
-- `.claude/architecture/module-map.md`
-- Any existing `.claude/plans/<feature-slug>.md` for the same feature
+- `.agents/context/ubiquitous-language.md`
+- `.agents/architecture/module-map.md`
+- Any existing `.agents/plans/<feature-slug>.md` for the same feature
+
+If only legacy `.claude/...` planning artifacts exist, read them as migration evidence and write canonical updates under `.agents/`.
 
 Then explore `src/` to understand the current implementation shape, similar features, and test boundaries.
 
@@ -48,7 +50,7 @@ If a decision is truly unresolved, mark it as an explicit open question or parke
 
 ## Step 3 — Write or Update the Feature Spec
 
-Create or update `.claude/plans/<feature-slug>.md` with:
+Create or update `.agents/plans/<feature-slug>.md` with:
 - Summary
 - Goal
 - Non-goals
