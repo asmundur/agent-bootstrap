@@ -59,6 +59,11 @@ json_value() {
 inferred_beads_prefix() {
   local value=""
 
+  if [[ -n "${LIVE_BEADS_PREFIX:-}" ]]; then
+    printf '%s\n' "${LIVE_BEADS_PREFIX}"
+    return 0
+  fi
+
   if [[ -f ".beads/config.yaml" ]]; then
     value="$(awk -F: '
       /^[[:space:]]*issue-prefix[[:space:]]*:/ {
@@ -86,8 +91,26 @@ inferred_beads_prefix() {
   printf 'prj\n'
 }
 
+inferred_live_beads_prefix() {
+  local value=""
+
+  if ! command -v bd >/dev/null 2>&1; then
+    return 0
+  fi
+
+  value="$(bd config get issue_prefix --json 2>/dev/null | jq -r '.value // empty' 2>/dev/null || true)"
+  if [[ -n "${value}" && "${value}" != "null" ]]; then
+    printf '%s\n' "${value}"
+  fi
+}
+
 inferred_beads_bootstrap_commands_json() {
   local value=""
+
+  if [[ -n "${LIVE_BEADS_PREFIX:-}" ]]; then
+    printf '%s\n' '["bd bootstrap --yes --json","git config core.hooksPath .githooks"]'
+    return 0
+  fi
 
   if [[ -f ".beads/clone-contract.json" ]]; then
     value="$(jq -c '(.bootstrap_commands // empty) | select(type == "array" and length > 0)' ".beads/clone-contract.json" 2>/dev/null || true)"
@@ -100,6 +123,7 @@ inferred_beads_bootstrap_commands_json() {
   printf '%s\n' '["bd bootstrap --yes --json","git config core.hooksPath .githooks"]'
 }
 
+LIVE_BEADS_PREFIX="$(inferred_live_beads_prefix)"
 PROJECT_NAME="$(json_value "PROJECT_NAME" "__PROJECT_NAME__")"
 PROJECT_DESCRIPTION="$(json_value "PROJECT_DESCRIPTION" "Project description pending /bootstrap.")"
 TECH_STACK="$(json_value "TECH_STACK" "Unknown")"
@@ -112,6 +136,7 @@ TEST_COMMAND="$(json_value "TEST_COMMAND" "not configured")"
 RUN_COMMAND="$(json_value "RUN_COMMAND" "not configured")"
 SOURCE_DIR="$(json_value "SOURCE_DIR" "not configured")"
 ARCHITECTURE_PATTERN="$(json_value "ARCHITECTURE_PATTERN" "not configured")"
+SCAFFOLD_COMMAND="$(json_value "SCAFFOLD_COMMAND" "scripts/scaffold.sh")"
 BEADS_PREFIX="$(json_value "BEADS_PREFIX" "$(inferred_beads_prefix)")"
 BEADS_BOOTSTRAP_COMMANDS_JSON="$(inferred_beads_bootstrap_commands_json)"
 BEADS_BOOTSTRAP_COMMANDS="$(jq -r '.[]' <<< "${BEADS_BOOTSTRAP_COMMANDS_JSON}")"
@@ -132,6 +157,7 @@ export P_TEST_COMMAND="${TEST_COMMAND}"
 export P_RUN_COMMAND="${RUN_COMMAND}"
 export P_SOURCE_DIR="${SOURCE_DIR}"
 export P_ARCHITECTURE_PATTERN="${ARCHITECTURE_PATTERN}"
+export P_SCAFFOLD_COMMAND="${SCAFFOLD_COMMAND}"
 export P_AGENT_HARNESS="${AGENT_HARNESS}"
 export P_BEADS_PREFIX="${BEADS_PREFIX}"
 export P_BEADS_BOOTSTRAP_COMMANDS="${BEADS_BOOTSTRAP_COMMANDS}"
@@ -157,6 +183,7 @@ replace_vars() {
     gsub(/\{\{RUN_COMMAND\}\}/, esc(ENVIRON["P_RUN_COMMAND"]))
     gsub(/\{\{SOURCE_DIR\}\}/, esc(ENVIRON["P_SOURCE_DIR"]))
     gsub(/\{\{ARCHITECTURE_PATTERN\}\}/, esc(ENVIRON["P_ARCHITECTURE_PATTERN"]))
+    gsub(/\{\{SCAFFOLD_COMMAND\}\}/, esc(ENVIRON["P_SCAFFOLD_COMMAND"]))
     gsub(/\{\{AGENT_HARNESS\}\}/, esc(ENVIRON["P_AGENT_HARNESS"]))
     gsub(/\{\{BEADS_PREFIX\}\}/, esc(ENVIRON["P_BEADS_PREFIX"]))
     gsub(/\{\{BEADS_BOOTSTRAP_COMMANDS\}\}/, esc(ENVIRON["P_BEADS_BOOTSTRAP_COMMANDS"]))
@@ -439,6 +466,9 @@ copy_template() {
   local tmp=""
   tmp="$(mktemp "${TMPDIR:-/tmp}/scaffold-template.XXXXXX")"
   replace_vars "${TEMPLATE_DIR}/${src}" > "${tmp}"
+  if [[ "${dst}" == "AGENTS.md" ]]; then
+    merge_agents_local_safety_constraints "${tmp}" "${dst}"
+  fi
   write_from_tmp "${tmp}" "${dst}" "${src}" "${category}"
 }
 
@@ -519,6 +549,16 @@ merge_pre_commit_local_commands() {
     /_common\.sh/ && /source/ { next }
     /beads-pre-commit\.sh/ { next }
     /^# Preserved from pre-existing \.githooks\/pre-commit during scaffold adoption\./ { next }
+    /^[[:space:]]*if[[:space:]]+![[:space:]]+command[[:space:]]+-v[[:space:]]+bd[[:space:]]*>/ {
+      skipping_legacy_beads = 1
+      next
+    }
+    skipping_legacy_beads {
+      if ($0 ~ /^[[:space:]]*exit[[:space:]]+"?\$\{?BD_HOOK_EXIT\}?"?[[:space:]]*$/) {
+        skipping_legacy_beads = 0
+      }
+      next
+    }
     seen[$0] { next }
     { print }
   ' "${tmp}" "${existing}" > "${extra}"
@@ -532,6 +572,66 @@ merge_pre_commit_local_commands() {
   fi
 
   rm -f "${extra}"
+}
+
+merge_agents_local_safety_constraints() {
+  local tmp="$1"
+  local existing="$2"
+  local section=""
+  local rendered=""
+
+  if [[ ! -f "${existing}" ]]; then
+    return 0
+  fi
+
+  section="$(mktemp "${TMPDIR:-/tmp}/scaffold-agents-safety.XXXXXX")"
+  rendered="$(mktemp "${TMPDIR:-/tmp}/scaffold-agents-rendered.XXXXXX")"
+
+  awk '
+    /^## Project-Specific Safety Constraints[[:space:]]*$/ {
+      in_section = 1
+      next
+    }
+    in_section && /^## / {
+      in_section = 0
+    }
+    in_section {
+      print
+    }
+  ' "${existing}" > "${section}"
+
+  if [[ -s "${section}" ]]; then
+    awk -v section_path="${section}" '
+      BEGIN {
+        while ((getline line < section_path) > 0) {
+          section = section line ORS
+        }
+        close(section_path)
+      }
+      /^## Project-Specific Safety Constraints[[:space:]]*$/ {
+        print
+        printf "%s", section
+        skipping = 1
+        next
+      }
+      skipping && /^## / {
+        skipping = 0
+        print
+        next
+      }
+      skipping {
+        next
+      }
+      {
+        print
+      }
+    ' "${tmp}" > "${rendered}"
+    mv "${rendered}" "${tmp}"
+  else
+    rm -f "${rendered}"
+  fi
+
+  rm -f "${section}"
 }
 
 verify_existing_adoption_conflicts
@@ -637,6 +737,7 @@ prune_obsolete_targets
   printf '    "RUN_COMMAND": "%s",\n' "${RUN_COMMAND}"
   printf '    "SOURCE_DIR": "%s",\n' "${SOURCE_DIR}"
   printf '    "ARCHITECTURE_PATTERN": "%s",\n' "${ARCHITECTURE_PATTERN}"
+  printf '    "SCAFFOLD_COMMAND": "%s",\n' "${SCAFFOLD_COMMAND}"
   printf '    "AGENT_HARNESS": "%s",\n' "${AGENT_HARNESS}"
   printf '    "BEADS_PREFIX": "%s",\n' "${BEADS_PREFIX}"
   printf '    "BOOTSTRAP_DATE": "%s"\n' "${BOOTSTRAP_DATE}"

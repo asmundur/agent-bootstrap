@@ -1,7 +1,7 @@
 {
   "generatedBy": "agent-bootstrap",
   "templateVersion": "1.2.0",
-  "generatedAt": "2026-05-02T23:54:12Z",
+  "generatedAt": "2026-05-03T01:09:24Z",
   "agentHarness": "all",
   "templateSource": "bootstrap-templates/templates/universal",
   "variables": {
@@ -17,9 +17,10 @@
     "RUN_COMMAND": "not configured",
     "SOURCE_DIR": "src/",
     "ARCHITECTURE_PATTERN": "Layered",
+    "SCAFFOLD_COMMAND": "scripts/scaffold.sh",
     "AGENT_HARNESS": "all",
     "BEADS_PREFIX": "age",
-    "BOOTSTRAP_DATE": "2026-05-02T23:54:12Z"
+    "BOOTSTRAP_DATE": "2026-05-03T01:09:24Z"
   },
   "files": [
     { "target": ".agents/anti-patterns.md", "source": "anti-patterns.md.tmpl", "category": "config", "checksum": "fe5b3be41e47c89bc4c99a26a6879b31bcdd83dd443dd1b9697db0d1d3b92763" },
@@ -37,7 +38,7 @@
     { "target": ".agents/workflows/feature-workflow.md", "source": "workflows/feature-workflow.md.tmpl", "category": "workflow", "checksum": "70b0dd4ae4bbfb113659db2f613bef40526bac4c46f1d9d27d2f0c2de148f31c" },
     { "target": ".beads/config.yaml", "source": "beads/config.yaml.tmpl", "category": "beads", "checksum": "0d526c819e163c34c4007a19d4059484a02d5581cd6dd9213ac04870822e3272" },
     { "target": ".beads/clone-contract.json", "source": "beads/clone-contract.json.tmpl", "category": "beads", "checksum": "230c415ab9c4e84df5c03cc07b3a811ee0f5e3db1ce12d966c002129e4e9a708" },
-    { "target": ".beads/.gitignore", "source": "beads/gitignore", "category": "beads", "checksum": "fd49a883cbea14522a7464c722af239b0fff42994780a92ee370ab32956127f8" },
+    { "target": ".beads/.gitignore", "source": "beads/gitignore", "category": "beads", "checksum": "c319d62537dd64136ea31aaee41cf064b07d2dbbfb15ed08dd94a69179035204" },
     { "target": ".githooks/_common.sh", "source": "githooks/_common.sh", "category": "hook", "checksum": "49ec38b6c5692dd7a36a9cf4454f03c73babccb2218f5cb93fa22033151ebedc" },
     { "target": ".githooks/beads-pre-commit.sh", "source": "githooks/beads-pre-commit.sh", "category": "hook", "checksum": "fc873fb3b80e42e2004568328fba7a1f9ad28b203396d86b5ec9d092d3d84800" },
     { "target": ".githooks/pre-commit", "source": "githooks/pre-commit", "category": "hook", "checksum": "4a1622348133dd3c487692da41b2f9f9f8f6508b1459c1c4a902aef7a8bfdc74" },

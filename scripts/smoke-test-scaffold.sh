@@ -98,6 +98,7 @@ require_text "\"agentHarness\":" ".agent-scaffold.json"
 require_text "\"templateSource\":" ".agent-scaffold.json"
 require_text "\"checksum\":" ".agent-scaffold.json"
 require_text "\"TYPECHECK_COMMAND\": \"not configured\"" ".agent-scaffold.json"
+require_text "\"SCAFFOLD_COMMAND\": \"scripts/scaffold.sh\"" ".agent-scaffold.json"
 require_text "\"target\": \".claude/skills/bootstrap.md\"" ".agent-scaffold.json"
 require_text "\"target\": \".claude/skills/resolve-adopted-artifacts.md\"" ".agent-scaffold.json"
 require_text "\"target\": \".codex/skills/feature-start.md\"" ".agent-scaffold.json"
@@ -134,6 +135,7 @@ require_text "Stage 0 — Shared Design Alignment" "bootstrap-templates/template
 require_text 'Create or update `.agents/context/ubiquitous-language.md`' "bootstrap-templates/templates/universal/skills/ubiquitous-language.md.tmpl"
 require_text "pre-commit.local" "bootstrap-templates/templates/universal/githooks/pre-commit"
 require_text "git ls-files -- .beads/" "bootstrap-templates/templates/universal/githooks/beads-pre-commit.sh"
+require_text "embeddeddolt/" "bootstrap-templates/templates/universal/beads/gitignore"
 forbid_text "/sync-bootstrap" ".claude/CLAUDE.md"
 
 run_scaffold() {
@@ -270,7 +272,7 @@ assert_existing_beads_contract_is_inferred() {
   local tmp="$1"
   local state="${tmp}/.agent-scaffold.json"
 
-  mkdir -p "${tmp}/.beads" "${tmp}/.githooks" "${tmp}/scripts"
+  mkdir -p "${tmp}/.beads" "${tmp}/.githooks" "${tmp}/scripts" "${tmp}/bin"
   cat <<'EOF' > "${tmp}/.beads/config.yaml"
 issue-prefix: ghq
 EOF
@@ -303,20 +305,41 @@ source "$(cd "$(dirname "$0")" && pwd)/_common.sh"
 "$(cd "$(dirname "$0")" && pwd)/beads-pre-commit.sh" "$@"
 "${repo_root}/scripts/secrets-validate" --mode pre-commit --repo-root "${repo_root}"
 "${repo_root}/scripts/lint" --fix
+if ! command -v bd >/dev/null 2>&1; then
+  echo "Warning: bd command not found in PATH, skipping Beads pre-commit hook" >&2
+  exit 0
+fi
+echo "Refreshing Beads tracker exports..."
+bd export -o .beads/issues.jsonl >/dev/null
+export BD_GIT_HOOK=1
+BD_HOOK_EXIT=0
+bd hooks run pre-commit "$@" || BD_HOOK_EXIT=$?
+exit "${BD_HOOK_EXIT}"
 EOF
   chmod +x "${tmp}/.githooks/pre-commit"
+  cat <<'EOF' > "${tmp}/bin/bd"
+#!/usr/bin/env bash
+set -euo pipefail
 
-  bash "${repo_root}/scripts/scaffold.sh" "${tmp}" "all" >/tmp/scaffold-existing-beads.out
+if [[ "$*" == "config get issue_prefix --json" ]]; then
+  printf '{"key":"issue_prefix","value":"live"}\n'
+  exit 0
+fi
 
-  jq -e '.variables.BEADS_PREFIX == "ghq"' "${state}" >/dev/null
+exit 1
+EOF
+  chmod +x "${tmp}/bin/bd"
+
+  PATH="${tmp}/bin:${PATH}" bash "${repo_root}/scripts/scaffold.sh" "${tmp}" "all" >/tmp/scaffold-existing-beads.out
+
+  jq -e '.variables.BEADS_PREFIX == "live"' "${state}" >/dev/null
   require_file "${tmp}/.beads/config.scaffold-candidate.yaml"
-  require_text "issue-prefix: ghq" "${tmp}/.beads/config.scaffold-candidate.yaml"
+  require_text "issue-prefix: live" "${tmp}/.beads/config.scaffold-candidate.yaml"
 
   require_file "${tmp}/.beads/clone-contract.scaffold-candidate.json"
-  jq -e '.issue_prefix == "ghq"' "${tmp}/.beads/clone-contract.scaffold-candidate.json" >/dev/null
+  jq -e '.issue_prefix == "live"' "${tmp}/.beads/clone-contract.scaffold-candidate.json" >/dev/null
   jq -e '.bootstrap_commands == [
-    "bd init -p ghq --skip-agents --skip-hooks --json",
-    "bd import .beads/issues.jsonl --json",
+    "bd bootstrap --yes --json",
     "git config core.hooksPath .githooks"
   ]' "${tmp}/.beads/clone-contract.scaffold-candidate.json" >/dev/null
   jq -e '.stale_runtime_recovery.local_pins | index(".beads/dolt-server.port")' "${tmp}/.beads/clone-contract.scaffold-candidate.json" >/dev/null
@@ -326,6 +349,9 @@ EOF
   require_text "Preserved from pre-existing .githooks/pre-commit" "${tmp}/.githooks/pre-commit.scaffold-candidate"
   require_text 'scripts/secrets-validate' "${tmp}/.githooks/pre-commit.scaffold-candidate"
   require_text 'scripts/lint' "${tmp}/.githooks/pre-commit.scaffold-candidate"
+  forbid_text "Refreshing Beads tracker exports" "${tmp}/.githooks/pre-commit.scaffold-candidate"
+  forbid_text "bd export -o .beads/issues.jsonl" "${tmp}/.githooks/pre-commit.scaffold-candidate"
+  forbid_text "BD_HOOK_EXIT" "${tmp}/.githooks/pre-commit.scaffold-candidate"
 
   require_file "${tmp}/.githooks/beads-pre-commit.scaffold-candidate.sh"
   require_text "git ls-files -- .beads/" "${tmp}/.githooks/beads-pre-commit.scaffold-candidate.sh"
@@ -397,8 +423,14 @@ assert_state_accurate() {
 
   git -C "${tmp}" init -q
   : > "${tmp}/.beads/export-state.json"
+  mkdir -p "${tmp}/.beads/embeddeddolt/beads/.dolt"
+  : > "${tmp}/.beads/embeddeddolt/beads/.dolt/config.json"
   if ! git -C "${tmp}" check-ignore -q .beads/export-state.json; then
     echo ".beads/export-state.json should be ignored in ${tmp}" >&2
+    exit 1
+  fi
+  if ! git -C "${tmp}" check-ignore -q .beads/embeddeddolt/beads/.dolt/config.json; then
+    echo ".beads/embeddeddolt should be ignored in ${tmp}" >&2
     exit 1
   fi
 
@@ -419,9 +451,37 @@ assert_state_accurate() {
     require_text "routine scaffold refreshes do not require \`/bootstrap\`" "${tmp}/AGENTS.md"
     forbid_text "{{BUILD_COMMAND}}" "${tmp}/AGENTS.md"
     forbid_text "{{LINT_COMMAND}}" "${tmp}/AGENTS.md"
+    forbid_text "{{SCAFFOLD_COMMAND}}" "${tmp}/AGENTS.md"
   fi
   jq -e '.stale_runtime_recovery.retry_probes | index("bd status --json") and index("bd ready --json")' "${tmp}/.beads/clone-contract.json" >/dev/null
   forbid_text "{{LINT_COMMAND}}" "${tmp}/.agents/anti-patterns.md"
+}
+
+assert_agents_local_safety_constraints_survive_refresh() {
+  local tmp="$1"
+  local state="${tmp}/.agent-scaffold.json"
+  local checksum=""
+
+  awk '
+    {
+      print
+    }
+    /^## Project-Specific Safety Constraints[[:space:]]*$/ {
+      print ""
+      print "- Local smoke constraint: preserve project-specific safety guidance across scaffold refreshes."
+    }
+  ' "${tmp}/AGENTS.md" > "${tmp}/AGENTS.md.next"
+  mv "${tmp}/AGENTS.md.next" "${tmp}/AGENTS.md"
+
+  checksum="$(shasum -a 256 "${tmp}/AGENTS.md" | awk '{print $1}')"
+  jq --arg checksum "${checksum}" '
+    .files |= map(if .target == "AGENTS.md" then .checksum = $checksum else . end)
+  ' "${state}" > "${state}.next"
+  mv "${state}.next" "${state}"
+
+  bash "${repo_root}/scripts/scaffold.sh" "${tmp}" "all" >/tmp/scaffold-agents-local-safety.out
+  require_text "Local smoke constraint: preserve project-specific safety guidance across scaffold refreshes." "${tmp}/AGENTS.md"
+  rm -f /tmp/scaffold-agents-local-safety.out
 }
 
 assert_beads_partial_commit_guard() {
@@ -493,6 +553,7 @@ assert_bootstrap_prompt_cadence "${tmp_cadence}"
 assert_beads_readiness_message_matches_status "${tmp_beads_readiness}"
 run_scaffold "${tmp_all}" "all"
 assert_state_accurate "${tmp_all}" "all"
+assert_agents_local_safety_constraints_survive_refresh "${tmp_all}"
 assert_drift_fails_loud "${tmp_all}"
 
 tmp_cc=$(mktemp -d -t scaffold-smoke-cc-XXXX)
