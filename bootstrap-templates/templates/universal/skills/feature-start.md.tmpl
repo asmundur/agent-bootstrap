@@ -80,7 +80,16 @@ Say: "Ready to hand off to the Feature-Implementation agent. Approve to continue
 
 ## Phase 6 — Create Feature Branch
 
-After approval:
+After implementation approval, propose the branch operation but do not run it yet. Implementation approval is not branch-switch approval.
+
+Present:
+- Current branch
+- Proposed branch name: `feature/{{PROJECT_NAME}}-<short-description>`
+- Any existing dirty files that would carry across the branch switch
+
+Stop and ask: "Approve switching to this feature branch?"
+
+Only after explicit branch-switch approval:
 ```bash
 git checkout -b feature/{{PROJECT_NAME}}-<short-description>
 ```

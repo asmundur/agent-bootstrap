@@ -22,6 +22,8 @@ Before starting, read:
 
 If the approved spec or shared context still exists only under legacy `.claude/...` paths, read it as migration evidence and keep new updates under `.agents/`.
 
+Before editing, capture `git status --short --branch` and treat it as the dirty-worktree baseline. Do not create or switch branches, stage files, commit, or emit commit/stage directives as part of TDD unless the user explicitly approved that exact git operation. Approval to implement with `/tdd` only authorizes code/test edits and feedback loops.
+
 ## Feedback Loops
 
 Use these commands when they are configured:
@@ -49,3 +51,5 @@ If you find yourself writing a lot of code before running a check, you are outru
 - Use browser verification for user-facing behavior when the project has it configured
 
 This skill is the default implementation style for the Feature-Implementation agent.
+
+When finishing, report changed files by intended scope and call out any dirty files that existed before or outside the work. Leave staging and commits to the explicit review/commit workflow.

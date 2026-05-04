@@ -12,6 +12,9 @@ Hard constraints for all agents working on {{PROJECT_NAME}}. These are non-negot
 - **Allowing term drift** — If the code, docs, and conversations start using different names for the same concept, update the ubiquitous language before proceeding.
 - **Committing without running tests** — `{{TEST_COMMAND}}` must pass before any commit. No exceptions.
 - **Creating commits without user review** — Stage 2.5 human review is mandatory. Never skip it.
+- **Switching branches without explicit approval** — Implementation approval is not branch-switch approval. Present the proposed branch operation and wait before running `git checkout`, `git switch`, or equivalent.
+- **Letting unrelated dirty files enter scope** — Record the dirty-worktree baseline before staging. Do not stage scaffold refreshes, generated assets, or local edits that were already dirty unless the user explicitly approves that scope.
+- **Letting commit messages drift from staged contents** — A semantic commit message must describe every staged change. If migrations, generated assets, or unrelated files are staged, either split the commit or ask the user to approve the broader scope.
 - **Force-pushing or hard-resetting** — These are destructive. Ask the user first.
 - **Bypassing hooks** — Never run `git commit --no-verify` — it skips the beads task handoff.
 - **Creating task-tracking noise** — Do not create Beads tasks for discussion, read-only inspection, retros, or task-management bookkeeping. One coherent body of work gets one task; follow-ups are only for separate future work.
