@@ -79,6 +79,30 @@ On apply, the scaffold:
 
 The legacy `scripts/bootstrap.sh` entrypoint remains as a thin wrapper around `scripts/scaffold.sh`.
 
+## Project Documentation Scaffolding
+
+This repo can scaffold lightweight software project management documentation into a target project.
+
+Initialize project docs:
+
+```bash
+./scripts/init-project-docs.sh ../my-project
+```
+
+Create sprint docs:
+
+```bash
+./scripts/new-sprint-docs.sh ../my-project 2026-05-06-sprint-01
+```
+
+Create release docs:
+
+```bash
+./scripts/new-release-docs.sh ../my-project 0.1.0
+```
+
+The generated docs are plain Markdown and are intended for direct human use.
+
 ## Repository Layout
 
 ```text
