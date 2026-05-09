@@ -138,30 +138,35 @@ SOURCE_DIR="$(json_value "SOURCE_DIR" "not configured")"
 ARCHITECTURE_PATTERN="$(json_value "ARCHITECTURE_PATTERN" "not configured")"
 SCAFFOLD_COMMAND="$(json_value "SCAFFOLD_COMMAND" "scripts/scaffold.sh")"
 BEADS_PREFIX="$(json_value "BEADS_PREFIX" "$(inferred_beads_prefix)")"
-BEADS_BOOTSTRAP_COMMANDS_JSON="$(inferred_beads_bootstrap_commands_json)"
-BEADS_BOOTSTRAP_COMMANDS="$(jq -r '.[]' <<< "${BEADS_BOOTSTRAP_COMMANDS_JSON}")"
-if ! grep -Fxq "bd status --json" <<< "${BEADS_BOOTSTRAP_COMMANDS}"; then
-  BEADS_BOOTSTRAP_COMMANDS="${BEADS_BOOTSTRAP_COMMANDS}"$'\n'"bd status --json"
-fi
 BOOTSTRAP_DATE="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 
-export P_PROJECT_NAME="${PROJECT_NAME}"
-export P_PROJECT_DESCRIPTION="${PROJECT_DESCRIPTION}"
-export P_TECH_STACK="${TECH_STACK}"
-export P_MAIN_LANGUAGE="${MAIN_LANGUAGE}"
-export P_BUILD_COMMAND="${BUILD_COMMAND}"
-export P_TYPECHECK_COMMAND="${TYPECHECK_COMMAND}"
-export P_LINT_COMMAND="${LINT_COMMAND}"
-export P_BROWSER_VERIFY_COMMAND="${BROWSER_VERIFY_COMMAND}"
-export P_TEST_COMMAND="${TEST_COMMAND}"
-export P_RUN_COMMAND="${RUN_COMMAND}"
-export P_SOURCE_DIR="${SOURCE_DIR}"
-export P_ARCHITECTURE_PATTERN="${ARCHITECTURE_PATTERN}"
-export P_SCAFFOLD_COMMAND="${SCAFFOLD_COMMAND}"
-export P_AGENT_HARNESS="${AGENT_HARNESS}"
-export P_BEADS_PREFIX="${BEADS_PREFIX}"
-export P_BEADS_BOOTSTRAP_COMMANDS="${BEADS_BOOTSTRAP_COMMANDS}"
-export P_BOOTSTRAP_DATE="${BOOTSTRAP_DATE}"
+refresh_scaffold_env() {
+  BEADS_BOOTSTRAP_COMMANDS_JSON="$(inferred_beads_bootstrap_commands_json)"
+  BEADS_BOOTSTRAP_COMMANDS="$(jq -r '.[]' <<< "${BEADS_BOOTSTRAP_COMMANDS_JSON}")"
+  if ! grep -Fxq "bd status --json" <<< "${BEADS_BOOTSTRAP_COMMANDS}"; then
+    BEADS_BOOTSTRAP_COMMANDS="${BEADS_BOOTSTRAP_COMMANDS}"$'\n'"bd status --json"
+  fi
+
+  export P_PROJECT_NAME="${PROJECT_NAME}"
+  export P_PROJECT_DESCRIPTION="${PROJECT_DESCRIPTION}"
+  export P_TECH_STACK="${TECH_STACK}"
+  export P_MAIN_LANGUAGE="${MAIN_LANGUAGE}"
+  export P_BUILD_COMMAND="${BUILD_COMMAND}"
+  export P_TYPECHECK_COMMAND="${TYPECHECK_COMMAND}"
+  export P_LINT_COMMAND="${LINT_COMMAND}"
+  export P_BROWSER_VERIFY_COMMAND="${BROWSER_VERIFY_COMMAND}"
+  export P_TEST_COMMAND="${TEST_COMMAND}"
+  export P_RUN_COMMAND="${RUN_COMMAND}"
+  export P_SOURCE_DIR="${SOURCE_DIR}"
+  export P_ARCHITECTURE_PATTERN="${ARCHITECTURE_PATTERN}"
+  export P_SCAFFOLD_COMMAND="${SCAFFOLD_COMMAND}"
+  export P_AGENT_HARNESS="${AGENT_HARNESS}"
+  export P_BEADS_PREFIX="${BEADS_PREFIX}"
+  export P_BEADS_BOOTSTRAP_COMMANDS="${BEADS_BOOTSTRAP_COMMANDS}"
+  export P_BOOTSTRAP_DATE="${BOOTSTRAP_DATE}"
+}
+
+refresh_scaffold_env
 
 replace_vars() {
   awk '
@@ -203,6 +208,9 @@ ADOPTION_CONFLICT_DETECTED_AT=()
 ADOPTION_CONFLICT_TARGET_CHECKSUMS=()
 ADOPTION_CONFLICT_CANDIDATE_CHECKSUMS=()
 ADOPTION_CONFLICT_STATUSES=()
+VALUE_DRIFT_SAFE_TARGETS=()
+ADOPTED_VALUE_NAMES=()
+ADOPTED_VALUE_VALUES=()
 
 record_generated() {
   GENERATED_TARGETS+=("$1")
@@ -223,6 +231,538 @@ state_file_checksum() {
   fi
 
   jq -r --arg target "${target}" '.files[] | select(.target == $target) | .checksum // empty' "${existing_state_file}"
+}
+
+is_known_scaffold_value() {
+  case "$1" in
+    PROJECT_NAME|PROJECT_DESCRIPTION|TECH_STACK|MAIN_LANGUAGE|BUILD_COMMAND|TYPECHECK_COMMAND|LINT_COMMAND|BROWSER_VERIFY_COMMAND|TEST_COMMAND|RUN_COMMAND|SOURCE_DIR|ARCHITECTURE_PATTERN|SCAFFOLD_COMMAND|BEADS_PREFIX)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+current_scaffold_value() {
+  case "$1" in
+    PROJECT_NAME) printf '%s\n' "${PROJECT_NAME}" ;;
+    PROJECT_DESCRIPTION) printf '%s\n' "${PROJECT_DESCRIPTION}" ;;
+    TECH_STACK) printf '%s\n' "${TECH_STACK}" ;;
+    MAIN_LANGUAGE) printf '%s\n' "${MAIN_LANGUAGE}" ;;
+    BUILD_COMMAND) printf '%s\n' "${BUILD_COMMAND}" ;;
+    TYPECHECK_COMMAND) printf '%s\n' "${TYPECHECK_COMMAND}" ;;
+    LINT_COMMAND) printf '%s\n' "${LINT_COMMAND}" ;;
+    BROWSER_VERIFY_COMMAND) printf '%s\n' "${BROWSER_VERIFY_COMMAND}" ;;
+    TEST_COMMAND) printf '%s\n' "${TEST_COMMAND}" ;;
+    RUN_COMMAND) printf '%s\n' "${RUN_COMMAND}" ;;
+    SOURCE_DIR) printf '%s\n' "${SOURCE_DIR}" ;;
+    ARCHITECTURE_PATTERN) printf '%s\n' "${ARCHITECTURE_PATTERN}" ;;
+    SCAFFOLD_COMMAND) printf '%s\n' "${SCAFFOLD_COMMAND}" ;;
+    BEADS_PREFIX) printf '%s\n' "${BEADS_PREFIX}" ;;
+    *) return 1 ;;
+  esac
+}
+
+set_scaffold_value() {
+  local name="$1"
+  local value="$2"
+
+  case "${name}" in
+    PROJECT_NAME) PROJECT_NAME="${value}" ;;
+    PROJECT_DESCRIPTION) PROJECT_DESCRIPTION="${value}" ;;
+    TECH_STACK) TECH_STACK="${value}" ;;
+    MAIN_LANGUAGE) MAIN_LANGUAGE="${value}" ;;
+    BUILD_COMMAND) BUILD_COMMAND="${value}" ;;
+    TYPECHECK_COMMAND) TYPECHECK_COMMAND="${value}" ;;
+    LINT_COMMAND) LINT_COMMAND="${value}" ;;
+    BROWSER_VERIFY_COMMAND) BROWSER_VERIFY_COMMAND="${value}" ;;
+    TEST_COMMAND) TEST_COMMAND="${value}" ;;
+    RUN_COMMAND) RUN_COMMAND="${value}" ;;
+    SOURCE_DIR) SOURCE_DIR="${value}" ;;
+    ARCHITECTURE_PATTERN) ARCHITECTURE_PATTERN="${value}" ;;
+    SCAFFOLD_COMMAND) SCAFFOLD_COMMAND="${value}" ;;
+    BEADS_PREFIX) BEADS_PREFIX="${value}" ;;
+    *) return 1 ;;
+  esac
+}
+
+mark_value_drift_safe() {
+  local target="$1"
+  local existing=""
+
+  if [[ ${#VALUE_DRIFT_SAFE_TARGETS[@]} -gt 0 ]]; then
+    for existing in "${VALUE_DRIFT_SAFE_TARGETS[@]}"; do
+      if [[ "${existing}" == "${target}" ]]; then
+        return 0
+      fi
+    done
+  fi
+
+  VALUE_DRIFT_SAFE_TARGETS+=("${target}")
+}
+
+is_value_drift_safe() {
+  local target="$1"
+  local existing=""
+
+  if [[ ${#VALUE_DRIFT_SAFE_TARGETS[@]} -gt 0 ]]; then
+    for existing in "${VALUE_DRIFT_SAFE_TARGETS[@]}"; do
+      if [[ "${existing}" == "${target}" ]]; then
+        return 0
+      fi
+    done
+  fi
+
+  return 1
+}
+
+record_adopted_value() {
+  local name="$1"
+  local value="$2"
+  local target="$3"
+  local i=0
+
+  if ! is_known_scaffold_value "${name}"; then
+    return 0
+  fi
+
+  for ((i = 0; i < ${#ADOPTED_VALUE_NAMES[@]}; i++)); do
+    if [[ "${ADOPTED_VALUE_NAMES[$i]}" == "${name}" ]]; then
+      if [[ "${ADOPTED_VALUE_VALUES[$i]}" != "${value}" ]]; then
+        echo "Error: scaffold variable ${name} has conflicting adopted values while reading ${target}" >&2
+        echo "Refusing to guess which scaffold value should win." >&2
+        exit 1
+      fi
+      return 0
+    fi
+  done
+
+  ADOPTED_VALUE_NAMES+=("${name}")
+  ADOPTED_VALUE_VALUES+=("${value}")
+}
+
+record_adopted_values_from_file() {
+  local values_file="$1"
+  local target="$2"
+  local name=""
+  local value=""
+
+  while IFS=$'\t' read -r name value; do
+    [[ -z "${name}" ]] && continue
+    record_adopted_value "${name}" "${value}" "${target}"
+  done < "${values_file}"
+}
+
+legacy_default_value() {
+  case "$1" in
+    BUILD_COMMAND|TYPECHECK_COMMAND|TEST_COMMAND|RUN_COMMAND)
+      printf '%s\n' "not configured"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+record_default_based_adopted_values_from_file() {
+  local values_file="$1"
+  local target="$2"
+  local name=""
+  local value=""
+  local baseline=""
+
+  while IFS=$'\t' read -r name value; do
+    [[ -z "${name}" ]] && continue
+    baseline="$(legacy_default_value "${name}" || true)"
+    [[ -n "${baseline}" ]] || continue
+    if [[ "$(current_scaffold_value "${name}")" == "${baseline}" ]]; then
+      record_adopted_value "${name}" "${value}" "${target}"
+    fi
+  done < "${values_file}"
+}
+
+apply_adopted_values() {
+  local i=0
+
+  for ((i = 0; i < ${#ADOPTED_VALUE_NAMES[@]}; i++)); do
+    set_scaffold_value "${ADOPTED_VALUE_NAMES[$i]}" "${ADOPTED_VALUE_VALUES[$i]}"
+  done
+}
+
+agents_value_snapshot() {
+  local target="$1"
+  local values_file="$2"
+  local normalized_file="$3"
+
+  : > "${values_file}"
+  awk \
+    -v values_path="${values_file}" \
+    -v old_PROJECT_NAME="${PROJECT_NAME}" \
+    -v old_PROJECT_DESCRIPTION="${PROJECT_DESCRIPTION}" \
+    -v old_TECH_STACK="${TECH_STACK}" \
+    -v old_MAIN_LANGUAGE="${MAIN_LANGUAGE}" \
+    -v old_BUILD_COMMAND="${BUILD_COMMAND}" \
+    -v old_TYPECHECK_COMMAND="${TYPECHECK_COMMAND}" \
+    -v old_LINT_COMMAND="${LINT_COMMAND}" \
+    -v old_BROWSER_VERIFY_COMMAND="${BROWSER_VERIFY_COMMAND}" \
+    -v old_TEST_COMMAND="${TEST_COMMAND}" \
+    -v old_RUN_COMMAND="${RUN_COMMAND}" \
+    -v old_SOURCE_DIR="${SOURCE_DIR}" \
+    -v old_ARCHITECTURE_PATTERN="${ARCHITECTURE_PATTERN}" \
+    -v old_SCAFFOLD_COMMAND="${SCAFFOLD_COMMAND}" \
+    -v old_BEADS_PREFIX="${BEADS_PREFIX}" '
+      function old_value(name) {
+        if (name == "PROJECT_NAME") return old_PROJECT_NAME
+        if (name == "PROJECT_DESCRIPTION") return old_PROJECT_DESCRIPTION
+        if (name == "TECH_STACK") return old_TECH_STACK
+        if (name == "MAIN_LANGUAGE") return old_MAIN_LANGUAGE
+        if (name == "BUILD_COMMAND") return old_BUILD_COMMAND
+        if (name == "TYPECHECK_COMMAND") return old_TYPECHECK_COMMAND
+        if (name == "LINT_COMMAND") return old_LINT_COMMAND
+        if (name == "BROWSER_VERIFY_COMMAND") return old_BROWSER_VERIFY_COMMAND
+        if (name == "TEST_COMMAND") return old_TEST_COMMAND
+        if (name == "RUN_COMMAND") return old_RUN_COMMAND
+        if (name == "SOURCE_DIR") return old_SOURCE_DIR
+        if (name == "ARCHITECTURE_PATTERN") return old_ARCHITECTURE_PATTERN
+        if (name == "SCAFFOLD_COMMAND") return old_SCAFFOLD_COMMAND
+        if (name == "BEADS_PREFIX") return old_BEADS_PREFIX
+        return ""
+      }
+      function emit(name, value) {
+        print name "\t" value >> values_path
+      }
+      function after_prefix(line, prefix) {
+        return substr(line, length(prefix) + 1)
+      }
+      function strip_suffix(value, suffix) {
+        return substr(value, 1, length(value) - length(suffix))
+      }
+      function starts_with(line, prefix) {
+        return substr(line, 1, length(prefix)) == prefix
+      }
+      function ends_with(line, suffix) {
+        return substr(line, length(line) - length(suffix) + 1) == suffix
+      }
+      {
+        line = $0
+
+        if (next_command != "") {
+          emit(next_command, line)
+          line = old_value(next_command)
+          next_command = ""
+        } else if (NR == 1 && starts_with(line, "# ")) {
+          emit("PROJECT_NAME", after_prefix(line, "# "))
+          line = "# " old_value("PROJECT_NAME")
+        } else if (line == "## Project Overview") {
+          in_overview = 1
+        } else if (in_overview == 1 && line == "") {
+          in_overview = 2
+        } else if (in_overview == 2) {
+          emit("PROJECT_DESCRIPTION", line)
+          line = old_value("PROJECT_DESCRIPTION")
+          in_overview = 0
+        } else if (starts_with(line, "- **Tech Stack:** ")) {
+          emit("TECH_STACK", after_prefix(line, "- **Tech Stack:** "))
+          line = "- **Tech Stack:** " old_value("TECH_STACK")
+        } else if (starts_with(line, "- **Language:** ")) {
+          emit("MAIN_LANGUAGE", after_prefix(line, "- **Language:** "))
+          line = "- **Language:** " old_value("MAIN_LANGUAGE")
+        } else if (starts_with(line, "- **Source Directory:** ")) {
+          emit("SOURCE_DIR", after_prefix(line, "- **Source Directory:** "))
+          line = "- **Source Directory:** " old_value("SOURCE_DIR")
+        } else if (starts_with(line, "- **Architecture:** ")) {
+          emit("ARCHITECTURE_PATTERN", after_prefix(line, "- **Architecture:** "))
+          line = "- **Architecture:** " old_value("ARCHITECTURE_PATTERN")
+        } else if (line == "# Apply or refresh scaffold") {
+          next_command = "SCAFFOLD_COMMAND"
+        } else if (line == "# Build") {
+          next_command = "BUILD_COMMAND"
+        } else if (line == "# Test") {
+          next_command = "TEST_COMMAND"
+        } else if (line == "# Run") {
+          next_command = "RUN_COMMAND"
+        } else if (starts_with(line, "- **Typecheck:** `") && ends_with(line, "`")) {
+          value = after_prefix(line, "- **Typecheck:** `")
+          value = strip_suffix(value, "`")
+          emit("TYPECHECK_COMMAND", value)
+          line = "- **Typecheck:** `" old_value("TYPECHECK_COMMAND") "`"
+        } else if (starts_with(line, "- **Lint:** `") && ends_with(line, "`")) {
+          value = after_prefix(line, "- **Lint:** `")
+          value = strip_suffix(value, "`")
+          emit("LINT_COMMAND", value)
+          line = "- **Lint:** `" old_value("LINT_COMMAND") "`"
+        } else if (starts_with(line, "- **Browser verification:** `") && ends_with(line, "`")) {
+          value = after_prefix(line, "- **Browser verification:** `")
+          value = strip_suffix(value, "`")
+          emit("BROWSER_VERIFY_COMMAND", value)
+          line = "- **Browser verification:** `" old_value("BROWSER_VERIFY_COMMAND") "`"
+        } else if (starts_with(line, "Re-run `") && line ~ /^Re-run `[^`]+` whenever /) {
+          value = after_prefix(line, "Re-run `")
+          sub(/` whenever .*/, "", value)
+          emit("SCAFFOLD_COMMAND", value)
+          sub("`" value "`", "`" old_value("SCAFFOLD_COMMAND") "`", line)
+        } else if (line ~ /Issue prefix: `[^`]+`\./) {
+          value = line
+          sub(/^.*Issue prefix: `/, "", value)
+          sub(/`\..*$/, "", value)
+          current_beads_prefix = value
+          emit("BEADS_PREFIX", value)
+          sub("`" value "`", "`" old_value("BEADS_PREFIX") "`", line)
+        }
+
+        if (current_beads_prefix != "") {
+          gsub(current_beads_prefix "-xxx", old_value("BEADS_PREFIX") "-xxx", line)
+          gsub(current_beads_prefix "-123", old_value("BEADS_PREFIX") "-123", line)
+          gsub("discovered-from:" current_beads_prefix, "discovered-from:" old_value("BEADS_PREFIX"), line)
+        }
+
+        print line
+      }
+    ' "${target}" > "${normalized_file}"
+}
+
+agents_legacy_command_snapshot() {
+  local target="$1"
+  local values_file="$2"
+  local normalized_file="$3"
+
+  : > "${values_file}"
+  awk -v values_path="${values_file}" '
+    function emit(name, value) {
+      print name "\t" value >> values_path
+    }
+    function after_prefix(line, prefix) {
+      return substr(line, length(prefix) + 1)
+    }
+    function strip_suffix(value, suffix) {
+      return substr(value, 1, length(value) - length(suffix))
+    }
+    function starts_with(line, prefix) {
+      return substr(line, 1, length(prefix)) == prefix
+    }
+    function ends_with(line, suffix) {
+      return substr(line, length(line) - length(suffix) + 1) == suffix
+    }
+    {
+      line = $0
+
+      if (next_command != "") {
+        emit(next_command, line)
+        line = "not configured"
+        next_command = ""
+      } else if (line == "# Build") {
+        next_command = "BUILD_COMMAND"
+      } else if (line == "# Test") {
+        next_command = "TEST_COMMAND"
+      } else if (line == "# Run") {
+        next_command = "RUN_COMMAND"
+      } else if (starts_with(line, "- **Typecheck:** `") && ends_with(line, "`")) {
+        value = after_prefix(line, "- **Typecheck:** `")
+        value = strip_suffix(value, "`")
+        emit("TYPECHECK_COMMAND", value)
+        line = "- **Typecheck:** `not configured`"
+      }
+
+      print line
+    }
+  ' "${target}" > "${normalized_file}"
+}
+
+adopt_agents_value_drift() {
+  local target="$1"
+  local expected_checksum="$2"
+  local values_file=""
+  local normalized_file=""
+  local normalized_checksum=""
+
+  values_file="$(mktemp "${TMPDIR:-/tmp}/scaffold-agents-values.XXXXXX")"
+  normalized_file="$(mktemp "${TMPDIR:-/tmp}/scaffold-agents-normalized.XXXXXX")"
+  agents_value_snapshot "${target}" "${values_file}" "${normalized_file}"
+  normalized_checksum="$(file_checksum "${normalized_file}")"
+
+  if [[ "${normalized_checksum}" == "${expected_checksum}" ]]; then
+    record_adopted_values_from_file "${values_file}" "${target}"
+    mark_value_drift_safe "${target}"
+    rm -f "${values_file}" "${normalized_file}"
+    return 0
+  fi
+
+  rm -f "${values_file}" "${normalized_file}"
+
+  values_file="$(mktemp "${TMPDIR:-/tmp}/scaffold-agents-values.XXXXXX")"
+  normalized_file="$(mktemp "${TMPDIR:-/tmp}/scaffold-agents-normalized.XXXXXX")"
+  agents_legacy_command_snapshot "${target}" "${values_file}" "${normalized_file}"
+  normalized_checksum="$(file_checksum "${normalized_file}")"
+
+  if [[ "${normalized_checksum}" == "${expected_checksum}" ]]; then
+    record_default_based_adopted_values_from_file "${values_file}" "${target}"
+    mark_value_drift_safe "${target}"
+    rm -f "${values_file}" "${normalized_file}"
+    return 0
+  fi
+
+  rm -f "${values_file}" "${normalized_file}"
+  return 1
+}
+
+template_value_snapshot() {
+  local target="$1"
+  local source="$2"
+  local values_file="$3"
+  local normalized_file="$4"
+  local template="${TEMPLATE_DIR}/${source}"
+
+  : > "${values_file}"
+  awk \
+    -v values_path="${values_file}" \
+    -v old_PROJECT_NAME="${PROJECT_NAME}" \
+    -v old_PROJECT_DESCRIPTION="${PROJECT_DESCRIPTION}" \
+    -v old_TECH_STACK="${TECH_STACK}" \
+    -v old_MAIN_LANGUAGE="${MAIN_LANGUAGE}" \
+    -v old_BUILD_COMMAND="${BUILD_COMMAND}" \
+    -v old_TYPECHECK_COMMAND="${TYPECHECK_COMMAND}" \
+    -v old_LINT_COMMAND="${LINT_COMMAND}" \
+    -v old_BROWSER_VERIFY_COMMAND="${BROWSER_VERIFY_COMMAND}" \
+    -v old_TEST_COMMAND="${TEST_COMMAND}" \
+    -v old_RUN_COMMAND="${RUN_COMMAND}" \
+    -v old_SOURCE_DIR="${SOURCE_DIR}" \
+    -v old_ARCHITECTURE_PATTERN="${ARCHITECTURE_PATTERN}" \
+    -v old_SCAFFOLD_COMMAND="${SCAFFOLD_COMMAND}" \
+    -v old_BEADS_PREFIX="${BEADS_PREFIX}" '
+      function old_value(name) {
+        if (name == "PROJECT_NAME") return old_PROJECT_NAME
+        if (name == "PROJECT_DESCRIPTION") return old_PROJECT_DESCRIPTION
+        if (name == "TECH_STACK") return old_TECH_STACK
+        if (name == "MAIN_LANGUAGE") return old_MAIN_LANGUAGE
+        if (name == "BUILD_COMMAND") return old_BUILD_COMMAND
+        if (name == "TYPECHECK_COMMAND") return old_TYPECHECK_COMMAND
+        if (name == "LINT_COMMAND") return old_LINT_COMMAND
+        if (name == "BROWSER_VERIFY_COMMAND") return old_BROWSER_VERIFY_COMMAND
+        if (name == "TEST_COMMAND") return old_TEST_COMMAND
+        if (name == "RUN_COMMAND") return old_RUN_COMMAND
+        if (name == "SOURCE_DIR") return old_SOURCE_DIR
+        if (name == "ARCHITECTURE_PATTERN") return old_ARCHITECTURE_PATTERN
+        if (name == "SCAFFOLD_COMMAND") return old_SCAFFOLD_COMMAND
+        if (name == "BEADS_PREFIX") return old_BEADS_PREFIX
+        return ""
+      }
+      function known(name) {
+        return name == "PROJECT_NAME" || name == "PROJECT_DESCRIPTION" || name == "TECH_STACK" || name == "MAIN_LANGUAGE" || name == "BUILD_COMMAND" || name == "TYPECHECK_COMMAND" || name == "LINT_COMMAND" || name == "BROWSER_VERIFY_COMMAND" || name == "TEST_COMMAND" || name == "RUN_COMMAND" || name == "SOURCE_DIR" || name == "ARCHITECTURE_PATTERN" || name == "SCAFFOLD_COMMAND" || name == "BEADS_PREFIX"
+      }
+      function emit(name, value) {
+        print name "\t" value >> values_path
+      }
+      NR == FNR {
+        template[FNR] = $0
+        template_count = FNR
+        next
+      }
+      {
+        target_count = FNR
+        tmpl = template[FNR]
+        line = $0
+
+        first_start = index(tmpl, "{{")
+        if (first_start == 0) {
+          if (line != tmpl) failed = 1
+          print line
+          next
+        }
+
+        before = substr(tmpl, 1, first_start - 1)
+        after_start = index(substr(tmpl, first_start + 2), "}}")
+        if (after_start == 0) {
+          failed = 1
+          print line
+          next
+        }
+
+        name = substr(tmpl, first_start + 2, after_start - 1)
+        rest = substr(tmpl, first_start + after_start + 3)
+        if (index(rest, "{{") > 0 || ! known(name)) {
+          failed = 1
+          print line
+          next
+        }
+
+        if (substr(line, 1, length(before)) != before || substr(line, length(line) - length(rest) + 1) != rest) {
+          failed = 1
+          print line
+          next
+        }
+
+        value = substr(line, length(before) + 1, length(line) - length(before) - length(rest))
+        emit(name, value)
+        print before old_value(name) rest
+      }
+      END {
+        if (target_count != template_count || failed) {
+          exit 1
+        }
+      }
+    ' "${template}" "${target}" > "${normalized_file}"
+}
+
+adopt_template_value_drift() {
+  local target="$1"
+  local source="$2"
+  local expected_checksum="$3"
+  local values_file=""
+  local normalized_file=""
+  local normalized_checksum=""
+
+  [[ "${source}" == *.tmpl ]] || return 1
+  [[ -f "${TEMPLATE_DIR}/${source}" ]] || return 1
+
+  values_file="$(mktemp "${TMPDIR:-/tmp}/scaffold-template-values.XXXXXX")"
+  normalized_file="$(mktemp "${TMPDIR:-/tmp}/scaffold-template-normalized.XXXXXX")"
+
+  if ! template_value_snapshot "${target}" "${source}" "${values_file}" "${normalized_file}"; then
+    rm -f "${values_file}" "${normalized_file}"
+    return 1
+  fi
+
+  normalized_checksum="$(file_checksum "${normalized_file}")"
+  if [[ "${normalized_checksum}" == "${expected_checksum}" ]]; then
+    record_adopted_values_from_file "${values_file}" "${target}"
+    mark_value_drift_safe "${target}"
+    rm -f "${values_file}" "${normalized_file}"
+    return 0
+  fi
+
+  rm -f "${values_file}" "${normalized_file}"
+  return 1
+}
+
+adopt_scaffold_value_drift() {
+  local target=""
+  local source=""
+  local expected_checksum=""
+  local current_checksum=""
+
+  if [[ -z "${existing_state_file}" ]]; then
+    return 0
+  fi
+
+  while IFS=$'\t' read -r target source expected_checksum; do
+    [[ -z "${target}" || -z "${expected_checksum}" ]] && continue
+    [[ -f "${target}" ]] || continue
+
+    current_checksum="$(file_checksum "${target}")"
+    if [[ "${current_checksum}" == "${expected_checksum}" ]]; then
+      continue
+    fi
+
+    if [[ "${target}" == "AGENTS.md" ]]; then
+      adopt_agents_value_drift "${target}" "${expected_checksum}" || true
+    else
+      adopt_template_value_drift "${target}" "${source}" "${expected_checksum}" || true
+    fi
+  done < <(jq -r '.files[]? | [.target, .source, .checksum] | @tsv' "${existing_state_file}")
+
+  apply_adopted_values
+  refresh_scaffold_env
 }
 
 scaffold_candidate_path() {
@@ -406,9 +946,15 @@ write_from_tmp() {
 
     current_checksum="$(file_checksum "${dst}")"
     if [[ "${current_checksum}" != "${expected_checksum}" ]]; then
-      echo "Error: scaffold-managed file has local edits: ${dst}" >&2
-      echo "Refusing to overwrite drifted scaffold-managed files." >&2
-      exit 1
+      if cmp -s "${dst}" "${tmp}"; then
+        :
+      elif is_value_drift_safe "${dst}"; then
+        :
+      else
+        echo "Error: scaffold-managed file has local edits: ${dst}" >&2
+        echo "Refusing to overwrite drifted scaffold-managed files." >&2
+        exit 1
+      fi
     fi
   fi
 
@@ -635,6 +1181,7 @@ merge_agents_local_safety_constraints() {
 }
 
 verify_existing_adoption_conflicts
+adopt_scaffold_value_drift
 
 copy_template "anti-patterns.md.tmpl" ".agents/anti-patterns.md" "config"
 copy_template "agents/feature-implementation.md.tmpl" ".claude/agents/feature-implementation.md" "agent"
@@ -717,63 +1264,91 @@ fi
 mark_obsolete_targets
 prune_obsolete_targets
 
-{
-  printf '{\n'
-  printf '  "generatedBy": "agent-bootstrap",\n'
-  printf '  "templateVersion": "1.2.0",\n'
-  printf '  "generatedAt": "%s",\n' "${BOOTSTRAP_DATE}"
-  printf '  "agentHarness": "%s",\n' "${AGENT_HARNESS}"
-  printf '  "templateSource": "bootstrap-templates/templates/universal",\n'
-  printf '  "variables": {\n'
-  printf '    "PROJECT_NAME": "%s",\n' "${PROJECT_NAME}"
-  printf '    "PROJECT_DESCRIPTION": "%s",\n' "${PROJECT_DESCRIPTION}"
-  printf '    "TECH_STACK": "%s",\n' "${TECH_STACK}"
-  printf '    "MAIN_LANGUAGE": "%s",\n' "${MAIN_LANGUAGE}"
-  printf '    "BUILD_COMMAND": "%s",\n' "${BUILD_COMMAND}"
-  printf '    "TYPECHECK_COMMAND": "%s",\n' "${TYPECHECK_COMMAND}"
-  printf '    "LINT_COMMAND": "%s",\n' "${LINT_COMMAND}"
-  printf '    "BROWSER_VERIFY_COMMAND": "%s",\n' "${BROWSER_VERIFY_COMMAND}"
-  printf '    "TEST_COMMAND": "%s",\n' "${TEST_COMMAND}"
-  printf '    "RUN_COMMAND": "%s",\n' "${RUN_COMMAND}"
-  printf '    "SOURCE_DIR": "%s",\n' "${SOURCE_DIR}"
-  printf '    "ARCHITECTURE_PATTERN": "%s",\n' "${ARCHITECTURE_PATTERN}"
-  printf '    "SCAFFOLD_COMMAND": "%s",\n' "${SCAFFOLD_COMMAND}"
-  printf '    "AGENT_HARNESS": "%s",\n' "${AGENT_HARNESS}"
-  printf '    "BEADS_PREFIX": "%s",\n' "${BEADS_PREFIX}"
-  printf '    "BOOTSTRAP_DATE": "%s"\n' "${BOOTSTRAP_DATE}"
-  printf '  },\n'
-  if [[ ${#ADOPTION_CONFLICT_TARGETS[@]} -gt 0 ]]; then
-    printf '  "adoptionConflicts": [\n'
+state_files_json="$(mktemp "${TMPDIR:-/tmp}/scaffold-state-files.XXXXXX")"
+state_conflicts_json="$(mktemp "${TMPDIR:-/tmp}/scaffold-state-conflicts.XXXXXX")"
+state_tmp="$(mktemp "${TMPDIR:-/tmp}/scaffold-state.XXXXXX")"
+: > "${state_files_json}"
+: > "${state_conflicts_json}"
 
-    count="${#ADOPTION_CONFLICT_TARGETS[@]}"
-    for ((i=0; i<count; i++)); do
-      comma=","
-      if [[ $i -eq $((count - 1)) ]]; then
-        comma=""
-      fi
-      printf '    { "target": "%s", "scaffoldCandidate": "%s", "detectedAt": "%s", "targetChecksum": "%s", "candidateChecksum": "%s", "status": "%s" }%s\n' \
-        "${ADOPTION_CONFLICT_TARGETS[$i]}" "${ADOPTION_CONFLICT_CANDIDATES[$i]}" "${ADOPTION_CONFLICT_DETECTED_AT[$i]}" \
-        "${ADOPTION_CONFLICT_TARGET_CHECKSUMS[$i]}" "${ADOPTION_CONFLICT_CANDIDATE_CHECKSUMS[$i]}" \
-        "${ADOPTION_CONFLICT_STATUSES[$i]}" "${comma}"
-    done
+count="${#GENERATED_TARGETS[@]}"
+for ((i=0; i<count; i++)); do
+  jq -nc \
+    --arg target "${GENERATED_TARGETS[$i]}" \
+    --arg source "${GENERATED_SOURCES[$i]}" \
+    --arg category "${GENERATED_CATEGORIES[$i]}" \
+    --arg checksum "${GENERATED_CHECKSUMS[$i]}" \
+    '{ target: $target, source: $source, category: $category, checksum: $checksum }' >> "${state_files_json}"
+done
 
-    printf '  ],\n'
-  fi
-  printf '  "files": [\n'
+count="${#ADOPTION_CONFLICT_TARGETS[@]}"
+for ((i=0; i<count; i++)); do
+  jq -nc \
+    --arg target "${ADOPTION_CONFLICT_TARGETS[$i]}" \
+    --arg scaffoldCandidate "${ADOPTION_CONFLICT_CANDIDATES[$i]}" \
+    --arg detectedAt "${ADOPTION_CONFLICT_DETECTED_AT[$i]}" \
+    --arg targetChecksum "${ADOPTION_CONFLICT_TARGET_CHECKSUMS[$i]}" \
+    --arg candidateChecksum "${ADOPTION_CONFLICT_CANDIDATE_CHECKSUMS[$i]}" \
+    --arg status "${ADOPTION_CONFLICT_STATUSES[$i]}" \
+    '{
+      target: $target,
+      scaffoldCandidate: $scaffoldCandidate,
+      detectedAt: $detectedAt,
+      targetChecksum: $targetChecksum,
+      candidateChecksum: $candidateChecksum,
+      status: $status
+    }' >> "${state_conflicts_json}"
+done
 
-  count="${#GENERATED_TARGETS[@]}"
-  for ((i=0; i<count; i++)); do
-    comma=","
-    if [[ $i -eq $((count - 1)) ]]; then
-      comma=""
-    fi
-    printf '    { "target": "%s", "source": "%s", "category": "%s", "checksum": "%s" }%s\n' \
-      "${GENERATED_TARGETS[$i]}" "${GENERATED_SOURCES[$i]}" "${GENERATED_CATEGORIES[$i]}" "${GENERATED_CHECKSUMS[$i]}" "${comma}"
-  done
-
-  printf '  ]\n'
-  printf '}\n'
-} > "${STATE_FILE}"
+jq -n \
+  --arg generatedAt "${BOOTSTRAP_DATE}" \
+  --arg agentHarness "${AGENT_HARNESS}" \
+  --arg PROJECT_NAME "${PROJECT_NAME}" \
+  --arg PROJECT_DESCRIPTION "${PROJECT_DESCRIPTION}" \
+  --arg TECH_STACK "${TECH_STACK}" \
+  --arg MAIN_LANGUAGE "${MAIN_LANGUAGE}" \
+  --arg BUILD_COMMAND "${BUILD_COMMAND}" \
+  --arg TYPECHECK_COMMAND "${TYPECHECK_COMMAND}" \
+  --arg LINT_COMMAND "${LINT_COMMAND}" \
+  --arg BROWSER_VERIFY_COMMAND "${BROWSER_VERIFY_COMMAND}" \
+  --arg TEST_COMMAND "${TEST_COMMAND}" \
+  --arg RUN_COMMAND "${RUN_COMMAND}" \
+  --arg SOURCE_DIR "${SOURCE_DIR}" \
+  --arg ARCHITECTURE_PATTERN "${ARCHITECTURE_PATTERN}" \
+  --arg SCAFFOLD_COMMAND "${SCAFFOLD_COMMAND}" \
+  --arg AGENT_HARNESS "${AGENT_HARNESS}" \
+  --arg BEADS_PREFIX "${BEADS_PREFIX}" \
+  --arg BOOTSTRAP_DATE "${BOOTSTRAP_DATE}" \
+  --slurpfile files "${state_files_json}" \
+  --slurpfile adoptionConflicts "${state_conflicts_json}" \
+  '{
+    generatedBy: "agent-bootstrap",
+    templateVersion: "1.2.0",
+    generatedAt: $generatedAt,
+    agentHarness: $agentHarness,
+    templateSource: "bootstrap-templates/templates/universal",
+    variables: {
+      PROJECT_NAME: $PROJECT_NAME,
+      PROJECT_DESCRIPTION: $PROJECT_DESCRIPTION,
+      TECH_STACK: $TECH_STACK,
+      MAIN_LANGUAGE: $MAIN_LANGUAGE,
+      BUILD_COMMAND: $BUILD_COMMAND,
+      TYPECHECK_COMMAND: $TYPECHECK_COMMAND,
+      LINT_COMMAND: $LINT_COMMAND,
+      BROWSER_VERIFY_COMMAND: $BROWSER_VERIFY_COMMAND,
+      TEST_COMMAND: $TEST_COMMAND,
+      RUN_COMMAND: $RUN_COMMAND,
+      SOURCE_DIR: $SOURCE_DIR,
+      ARCHITECTURE_PATTERN: $ARCHITECTURE_PATTERN,
+      SCAFFOLD_COMMAND: $SCAFFOLD_COMMAND,
+      AGENT_HARNESS: $AGENT_HARNESS,
+      BEADS_PREFIX: $BEADS_PREFIX,
+      BOOTSTRAP_DATE: $BOOTSTRAP_DATE
+    }
+  }
+  + (if ($adoptionConflicts | length) > 0 then { adoptionConflicts: $adoptionConflicts } else {} end)
+  + { files: $files }' > "${state_tmp}"
+mv "${state_tmp}" "${STATE_FILE}"
+rm -f "${state_files_json}" "${state_conflicts_json}"
 echo "  ✓ ${STATE_FILE}"
 
 if [[ -f "${LEGACY_STATE_FILE}" ]]; then

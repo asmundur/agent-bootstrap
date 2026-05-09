@@ -15,7 +15,7 @@ require_file() {
 require_text() {
   local pattern="$1"
   local path="$2"
-  rg -F --quiet "${pattern}" "${path}" || {
+  rg -F --quiet -- "${pattern}" "${path}" || {
     echo "missing expected text in ${path}: ${pattern}" >&2
     exit 1
   }
@@ -25,7 +25,7 @@ forbid_text() {
   local pattern="$1"
   local path="$2"
   require_file "${path}"
-  if rg -F --quiet "${pattern}" "${path}"; then
+  if rg -F --quiet -- "${pattern}" "${path}"; then
     echo "unexpected text in ${path}: ${pattern}" >&2
     exit 1
   fi
@@ -484,6 +484,135 @@ assert_agents_local_safety_constraints_survive_refresh() {
   rm -f /tmp/scaffold-agents-local-safety.out
 }
 
+assert_agents_value_drift_refreshes() {
+  local tmp="$1"
+  local state="${tmp}/.agent-scaffold.json"
+  local checksum=""
+
+  awk '
+    /^- \*\*Source Directory:\*\* / {
+      print "- **Source Directory:** cmd/..."
+      next
+    }
+    /^# Build$/ {
+      print
+      getline
+      print "go build ./cmd/agent-sandbox"
+      next
+    }
+    /^# Test$/ {
+      print
+      getline
+      print "go test ./..."
+      next
+    }
+    /^# Run$/ {
+      print
+      getline
+      print "go run ./cmd/agent-sandbox --help"
+      next
+    }
+    /^- \*\*Typecheck:\*\* `/ {
+      print "- **Typecheck:** `go test ./...`"
+      next
+    }
+    {
+      print
+    }
+  ' "${tmp}/AGENTS.md" > "${tmp}/AGENTS.md.next"
+  mv "${tmp}/AGENTS.md.next" "${tmp}/AGENTS.md"
+
+  bash "${repo_root}/scripts/scaffold.sh" "${tmp}" "all" >/tmp/scaffold-agents-value-drift.out
+
+  require_text "- **Source Directory:** cmd/..." "${tmp}/AGENTS.md"
+  require_text "go build ./cmd/agent-sandbox" "${tmp}/AGENTS.md"
+  require_text "go test ./..." "${tmp}/AGENTS.md"
+  require_text "go run ./cmd/agent-sandbox --help" "${tmp}/AGENTS.md"
+  jq -e '.variables.SOURCE_DIR == "cmd/..."' "${state}" >/dev/null
+  jq -e '.variables.BUILD_COMMAND == "go build ./cmd/agent-sandbox"' "${state}" >/dev/null
+  jq -e '.variables.TEST_COMMAND == "go test ./..."' "${state}" >/dev/null
+  jq -e '.variables.RUN_COMMAND == "go run ./cmd/agent-sandbox --help"' "${state}" >/dev/null
+  jq -e '.variables.TYPECHECK_COMMAND == "go test ./..."' "${state}" >/dev/null
+  checksum="$(shasum -a 256 "${tmp}/AGENTS.md" | awk '{print $1}')"
+  jq -e --arg checksum "${checksum}" '.files[] | select(.target == "AGENTS.md") | .checksum == $checksum' "${state}" >/dev/null
+
+  rm -f /tmp/scaffold-agents-value-drift.out
+}
+
+assert_state_first_value_hydration_refreshes() {
+  local tmp="$1"
+  local state="${tmp}/.agent-scaffold.json"
+
+  jq '
+    .variables.BUILD_COMMAND = "printf \"build ok\"" |
+    .variables.RUN_COMMAND = "printf \"run ok\""
+  ' "${state}" > "${state}.next"
+  mv "${state}.next" "${state}"
+
+  bash "${repo_root}/scripts/scaffold.sh" "${tmp}" "all" >/tmp/scaffold-state-first-hydration.out
+
+  require_text 'printf "build ok"' "${tmp}/AGENTS.md"
+  require_text 'printf "run ok"' "${tmp}/AGENTS.md"
+  jq -e '.variables.BUILD_COMMAND == "printf \"build ok\""' "${state}" >/dev/null
+  jq -e '.variables.RUN_COMMAND == "printf \"run ok\""' "${state}" >/dev/null
+
+  rm -f /tmp/scaffold-state-first-hydration.out
+}
+
+assert_state_advanced_partial_agents_refreshes() {
+  local tmp="$1"
+  local state="${tmp}/.agent-scaffold.json"
+
+  jq '
+    .variables.SOURCE_DIR = "cmd/agent-sandbox and internal packages" |
+    .variables.BUILD_COMMAND = "go build ./cmd/agent-sandbox" |
+    .variables.TYPECHECK_COMMAND = "go test ./..." |
+    .variables.TEST_COMMAND = "go test ./..." |
+    .variables.RUN_COMMAND = "go run ./cmd/agent-sandbox --help"
+  ' "${state}" > "${state}.next"
+  mv "${state}.next" "${state}"
+
+  awk '
+    /^# Build$/ {
+      print
+      getline
+      print "go build ./cmd/agent-sandbox"
+      next
+    }
+    /^# Test$/ {
+      print
+      getline
+      print "go test ./..."
+      next
+    }
+    /^# Run$/ {
+      print
+      getline
+      print "go run ./cmd/agent-sandbox --help"
+      next
+    }
+    /^- \*\*Typecheck:\*\* `/ {
+      print "- **Typecheck:** `go test ./...`"
+      next
+    }
+    {
+      print
+    }
+  ' "${tmp}/AGENTS.md" > "${tmp}/AGENTS.md.next"
+  mv "${tmp}/AGENTS.md.next" "${tmp}/AGENTS.md"
+
+  bash "${repo_root}/scripts/scaffold.sh" "${tmp}" "all" >/tmp/scaffold-state-advanced-partial-agents.out
+
+  require_text "- **Source Directory:** cmd/agent-sandbox and internal packages" "${tmp}/AGENTS.md"
+  require_text "go build ./cmd/agent-sandbox" "${tmp}/AGENTS.md"
+  require_text "go test ./..." "${tmp}/AGENTS.md"
+  require_text "go run ./cmd/agent-sandbox --help" "${tmp}/AGENTS.md"
+  jq -e '.variables.SOURCE_DIR == "cmd/agent-sandbox and internal packages"' "${state}" >/dev/null
+  jq -e '.variables.BUILD_COMMAND == "go build ./cmd/agent-sandbox"' "${state}" >/dev/null
+
+  rm -f /tmp/scaffold-state-advanced-partial-agents.out
+}
+
 assert_beads_partial_commit_guard() {
   if ! command -v bd >/dev/null 2>&1; then
     echo "bd not found; skipping Beads partial-commit smoke test"
@@ -548,13 +677,25 @@ assert_beads_partial_commit_guard() {
 tmp_all=$(mktemp -d -t scaffold-smoke-all-XXXX)
 tmp_cadence=$(mktemp -d -t scaffold-smoke-cadence-XXXX)
 tmp_beads_readiness=$(mktemp -d -t scaffold-smoke-beads-readiness-XXXX)
-trap 'rm -rf "${tmp_all:-}" "${tmp_cadence:-}" "${tmp_beads_readiness:-}" "${tmp_cc:-}" "${tmp_adopt:-}" "${tmp_existing_beads:-}" "${tmp_resolved:-}"' EXIT
+trap 'rm -rf "${tmp_all:-}" "${tmp_cadence:-}" "${tmp_beads_readiness:-}" "${tmp_value_drift:-}" "${tmp_state_hydration:-}" "${tmp_state_advanced_partial:-}" "${tmp_cc:-}" "${tmp_adopt:-}" "${tmp_existing_beads:-}" "${tmp_resolved:-}"' EXIT
 assert_bootstrap_prompt_cadence "${tmp_cadence}"
 assert_beads_readiness_message_matches_status "${tmp_beads_readiness}"
 run_scaffold "${tmp_all}" "all"
 assert_state_accurate "${tmp_all}" "all"
 assert_agents_local_safety_constraints_survive_refresh "${tmp_all}"
 assert_drift_fails_loud "${tmp_all}"
+
+tmp_value_drift=$(mktemp -d -t scaffold-smoke-value-drift-XXXX)
+run_scaffold "${tmp_value_drift}" "all"
+assert_agents_value_drift_refreshes "${tmp_value_drift}"
+
+tmp_state_hydration=$(mktemp -d -t scaffold-smoke-state-hydration-XXXX)
+run_scaffold "${tmp_state_hydration}" "all"
+assert_state_first_value_hydration_refreshes "${tmp_state_hydration}"
+
+tmp_state_advanced_partial=$(mktemp -d -t scaffold-smoke-state-advanced-partial-XXXX)
+run_scaffold "${tmp_state_advanced_partial}" "all"
+assert_state_advanced_partial_agents_refreshes "${tmp_state_advanced_partial}"
 
 tmp_cc=$(mktemp -d -t scaffold-smoke-cc-XXXX)
 run_scaffold "${tmp_cc}" "claude-code"
