@@ -41,6 +41,11 @@ Hard constraints for all agents working on {{PROJECT_NAME}}. These are non-negot
 - **Testing implementation details** — Test observable behavior, not internal structure.
 - **Testing below the module boundary by default** — Prefer interface-level tests unless the risk truly lives inside the module.
 - **Mocking what you don't own** — Prefer real integrations at system boundaries when feasible.
+- **Making infrastructure green by weakening the guardrail** — For infrastructure, deployment, configuration, or YAML-heavy changes, the red phase should prove unsafe state is rejected before mutation. Do not remove or relax a preflight, plan check, secret check, ingress check, or fail-loud message just to make a deployment pass.
+
+## Operations Anti-Patterns
+
+- **Drifting off a monitoring mission** — When the user asks you to monitor, babysit, follow through, or see a deployment through, do not let adjacent cleanup, planning, or interesting side investigations replace the watched run. Handle blockers and repo-side fixes, then return to the monitored run until terminal success or a clearly named blocker.
 
 ---
 

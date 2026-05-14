@@ -13,6 +13,33 @@ Work in strict red/green/refactor cycles:
 6. Refactor while the checks stay green
 7. Repeat
 
+## Infrastructure And YAML Contract TDD
+
+For infrastructure, deployment, configuration, and YAML-heavy work, treat TDD
+as contract-first delivery rather than ordinary feature construction. The red
+phase should prove that an unsafe or ambiguous state is rejected before any
+mutation happens. A failed deployment, plan, preflight, lint, or smoke check is
+useful when it fails early for the expected contract reason.
+
+Prefer checks that enforce:
+- preflight validation before host, cloud, DNS, database, queue, secret, or
+  deployment mutation
+- explicit failure before runtime drift, implicit defaults, or partial success
+- small reversible steps with a clear blast radius
+- failure messages that name the violated contract and the recovery path
+- no silent fallback behavior and no hidden partial success
+
+For YAML or declarative config, write contract checks around the rendered or
+effective behavior when possible, not only around syntax. Examples include
+rendered Compose services, Kubernetes manifests, Ansible inventory variables,
+GitHub Actions workflow ordering, Terraform plans, Caddy routes, secret
+delivery paths, and public ingress rules.
+
+Successful deployment is the green phase only when the required preconditions
+were actually verified. Do not weaken a guardrail just to make a deploy pass;
+refine the implementation until the contract is satisfied or stop with an
+early, loud, actionable failure.
+
 ## Required Inputs
 
 Before starting, read:

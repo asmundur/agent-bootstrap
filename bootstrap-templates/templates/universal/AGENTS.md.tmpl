@@ -171,6 +171,8 @@ If a repository still has legacy `.claude/plans/`, `.claude/context/`, or `.clau
 - Keep terminology aligned with the glossary; update it when the domain language changes
 - Design around module boundaries and simple interfaces, especially for refactors
 - Implement in small red/green/refactor steps and stay within the fastest available feedback loop
+- For infrastructure, deployment, configuration, or YAML-heavy work, make the red step a contract check that rejects unsafe state before mutation; successful deployment should imply that preconditions were actually verified, not merely that commands eventually passed.
+- When the user asks you to monitor, babysit, follow through, or see a run through to deployment, keep that monitoring mission as the primary objective until a terminal success or a clearly named blocker. Fixes and investigations should support that objective, and after each detour return to the run being watched.
 - When adding or debugging runtime environment variables, verify the full delivery path: documented env template, secret/project env source, deploy template interpolation, service/container injection, and application settings. Add or update a contract test so documented runtime variables cannot drift from the deployment service environment.
 - Get explicit user approval before committing changes
 - Get explicit user approval before creating or switching branches; implementation approval is not branch approval
