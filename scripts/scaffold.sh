@@ -1051,7 +1051,7 @@ copy_beads_clone_contract() {
       mode: "bootstrap_required",
       backend: "dolt",
       issue_prefix: $issue_prefix,
-      jsonl_export: "issues.jsonl",
+      jsonl_export: ".beads/issues.jsonl",
       bootstrap_commands: $bootstrap_commands,
       read_probe: "bd status --json",
       stale_runtime_recovery: {

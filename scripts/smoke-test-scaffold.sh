@@ -281,7 +281,7 @@ EOF
   "mode": "bootstrap_required",
   "backend": "dolt",
   "issue_prefix": "ghq",
-  "jsonl_export": "issues.jsonl",
+  "jsonl_export": ".beads/issues.jsonl",
   "bootstrap_commands": [
     "bd init -p ghq --skip-agents --skip-hooks --json",
     "bd import .beads/issues.jsonl --json",
@@ -338,6 +338,7 @@ EOF
 
   require_file "${tmp}/.beads/clone-contract.scaffold-candidate.json"
   jq -e '.issue_prefix == "live"' "${tmp}/.beads/clone-contract.scaffold-candidate.json" >/dev/null
+  jq -e '.jsonl_export == ".beads/issues.jsonl"' "${tmp}/.beads/clone-contract.scaffold-candidate.json" >/dev/null
   jq -e '.bootstrap_commands == [
     "bd bootstrap --yes --json",
     "git config core.hooksPath .githooks"
@@ -454,6 +455,7 @@ assert_state_accurate() {
     forbid_text "{{SCAFFOLD_COMMAND}}" "${tmp}/AGENTS.md"
   fi
   jq -e '.stale_runtime_recovery.retry_probes | index("bd status --json") and index("bd ready --json")' "${tmp}/.beads/clone-contract.json" >/dev/null
+  jq -e '.jsonl_export == ".beads/issues.jsonl"' "${tmp}/.beads/clone-contract.json" >/dev/null
   forbid_text "{{LINT_COMMAND}}" "${tmp}/.agents/anti-patterns.md"
 }
 
