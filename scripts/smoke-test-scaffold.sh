@@ -159,10 +159,32 @@ assert_bootstrap_prompt_cadence() {
 
   bash "${repo_root}/scripts/scaffold.sh" "${tmp}" "all" >/tmp/scaffold-cadence-refresh.out
   require_text "Scaffold refresh complete." /tmp/scaffold-cadence-refresh.out
-  require_text "Run /bootstrap only if project-specific scaffold values need to be re-hydrated from the codebase." /tmp/scaffold-cadence-refresh.out
-  forbid_text "Next step: run /bootstrap in your agent harness" /tmp/scaffold-cadence-refresh.out
+  require_text "Project-specific scaffold values still look generic: PROJECT_NAME, PROJECT_DESCRIPTION, TECH_STACK, MAIN_LANGUAGE, SOURCE_DIR, ARCHITECTURE_PATTERN" /tmp/scaffold-cadence-refresh.out
+  require_text "Next step: run /bootstrap in your agent harness to hydrate those values from the codebase." /tmp/scaffold-cadence-refresh.out
+  forbid_text "to hydrate project-specific values from the codebase." /tmp/scaffold-cadence-refresh.out
 
-  rm -f /tmp/scaffold-cadence-first.out /tmp/scaffold-cadence-refresh.out
+  jq '
+    .variables.PROJECT_NAME = "scaffold-cadence-smoke" |
+    .variables.PROJECT_DESCRIPTION = "Reusable scaffold for agent-assisted software development." |
+    .variables.TECH_STACK = "Bash, Markdown, jq" |
+    .variables.MAIN_LANGUAGE = "Shell" |
+    .variables.SOURCE_DIR = "scripts/" |
+    .variables.ARCHITECTURE_PATTERN = "Template renderer" |
+    .variables.BUILD_COMMAND = "not configured" |
+    .variables.TYPECHECK_COMMAND = "not configured" |
+    .variables.LINT_COMMAND = "not configured" |
+    .variables.BROWSER_VERIFY_COMMAND = "not configured" |
+    .variables.TEST_COMMAND = "not configured" |
+    .variables.RUN_COMMAND = "not configured"
+  ' "${tmp}/.agent-scaffold.json" > "${tmp}/.agent-scaffold.json.next"
+  mv "${tmp}/.agent-scaffold.json.next" "${tmp}/.agent-scaffold.json"
+
+  bash "${repo_root}/scripts/scaffold.sh" "${tmp}" "all" >/tmp/scaffold-cadence-hydrated-refresh.out
+  require_text "Scaffold refresh complete." /tmp/scaffold-cadence-hydrated-refresh.out
+  require_text "/bootstrap is not needed for this refresh." /tmp/scaffold-cadence-hydrated-refresh.out
+  forbid_text "Project-specific scaffold values still look generic" /tmp/scaffold-cadence-hydrated-refresh.out
+
+  rm -f /tmp/scaffold-cadence-first.out /tmp/scaffold-cadence-refresh.out /tmp/scaffold-cadence-hydrated-refresh.out
 }
 
 assert_beads_readiness_message_matches_status() {
@@ -552,18 +574,23 @@ assert_agents_value_drift_refreshes() {
 assert_state_first_value_hydration_refreshes() {
   local tmp="$1"
   local state="${tmp}/.agent-scaffold.json"
+  local nuxt_build_command="NUXT_PUBLIC_API_BASE=http://127.0.0.1:18001 NUXT_SERVER_API_BASE=http://127.0.0.1:18001 VITE_API_BASE=http://127.0.0.1:18001 sh -c 'npm run build:css:prod && pnpm --dir frontends/nuxt build'"
 
-  jq '
-    .variables.BUILD_COMMAND = "printf \"build ok\"" |
+  jq --arg build_command "${nuxt_build_command}" '
+    .variables.BUILD_COMMAND = $build_command |
     .variables.RUN_COMMAND = "printf \"run ok\""
   ' "${state}" > "${state}.next"
   mv "${state}.next" "${state}"
 
   bash "${repo_root}/scripts/scaffold.sh" "${tmp}" "all" >/tmp/scaffold-state-first-hydration.out
 
-  require_text 'printf "build ok"' "${tmp}/AGENTS.md"
+  require_text "${nuxt_build_command}" "${tmp}/AGENTS.md"
+  require_text "${nuxt_build_command}" "${tmp}/.agents/workflows/feature-workflow.md"
+  require_text "${nuxt_build_command}" "${tmp}/.codex/skills/feature-start.md"
+  require_text "${nuxt_build_command}" "${tmp}/.claude/skills/feature-start.md"
+  require_text "${nuxt_build_command}" "${tmp}/.antigravity/skills/feature-start.md"
   require_text 'printf "run ok"' "${tmp}/AGENTS.md"
-  jq -e '.variables.BUILD_COMMAND == "printf \"build ok\""' "${state}" >/dev/null
+  jq -e --arg build_command "${nuxt_build_command}" '.variables.BUILD_COMMAND == $build_command' "${state}" >/dev/null
   jq -e '.variables.RUN_COMMAND == "printf \"run ok\""' "${state}" >/dev/null
 
   rm -f /tmp/scaffold-state-first-hydration.out

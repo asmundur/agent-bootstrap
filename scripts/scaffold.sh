@@ -1005,6 +1005,19 @@ prune_obsolete_targets() {
   done
 }
 
+generic_required_scaffold_values() {
+  local joined=""
+
+  [[ "${PROJECT_NAME}" == "__PROJECT_NAME__" ]] && joined="${joined}${joined:+, }PROJECT_NAME"
+  [[ "${PROJECT_DESCRIPTION}" == "Project description pending /bootstrap." ]] && joined="${joined}${joined:+, }PROJECT_DESCRIPTION"
+  [[ "${TECH_STACK}" == "Unknown" ]] && joined="${joined}${joined:+, }TECH_STACK"
+  [[ "${MAIN_LANGUAGE}" == "Unknown" ]] && joined="${joined}${joined:+, }MAIN_LANGUAGE"
+  [[ "${SOURCE_DIR}" == "not configured" ]] && joined="${joined}${joined:+, }SOURCE_DIR"
+  [[ "${ARCHITECTURE_PATTERN}" == "not configured" ]] && joined="${joined}${joined:+, }ARCHITECTURE_PATTERN"
+
+  printf '%s\n' "${joined}"
+}
+
 copy_template() {
   local src="$1"
   local dst="$2"
@@ -1379,6 +1392,12 @@ if [[ ${#ADOPTION_CONFLICT_TARGETS[@]} -gt 0 ]]; then
 elif [[ -z "${existing_state_file}" ]]; then
   echo "Next step: run /bootstrap in your agent harness to hydrate project-specific values from the codebase."
 else
+  generic_values="$(generic_required_scaffold_values)"
   echo "Scaffold refresh complete."
-  echo "Run /bootstrap only if project-specific scaffold values need to be re-hydrated from the codebase."
+  if [[ -n "${generic_values}" ]]; then
+    echo "Project-specific scaffold values still look generic: ${generic_values}."
+    echo "Next step: run /bootstrap in your agent harness to hydrate those values from the codebase."
+  else
+    echo "/bootstrap is not needed for this refresh."
+  fi
 fi
