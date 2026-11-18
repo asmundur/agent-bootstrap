@@ -12,11 +12,18 @@ Hard constraints for all agents working on agent-bootstrap. These are non-negoti
 - **Allowing term drift** — If the code, docs, and conversations start using different names for the same concept, update the ubiquitous language before proceeding.
 - **Committing without running tests** — `not configured` must pass before any commit. No exceptions.
 - **Creating commits without user review** — Stage 2.5 human review is mandatory. Never skip it.
+- **Switching branches without explicit approval** — Implementation approval is not branch-operation approval. Propose the validated branch-safe name `feature/<feature-slug>` and wait before creating or switching. If the user explicitly declines, continue on the current branch unless they ask to stop.
+- **Using display names as Git refs** — Human project names may contain spaces or punctuation. Build feature branches from the feature slug, validate with `git check-ref-format --branch`, and quote the ref in every command.
+- **Capturing the dirty baseline too late** — Capture the original worktree baseline before the first mutation, including task claim, spec write, branch operation, generated-file refresh, or edit. Carry it with the task-owned change ledger; never redefine a post-implementation worktree as the baseline.
+- **Letting unrelated dirty files enter scope** — Compare against the original baseline before preparation or staging. Do not stage scaffold refreshes, generated assets, or local edits that were already dirty unless the user explicitly approves that scope.
+- **Letting staged scope change after approval** — After preparation/staging approval, stage approved sources, run `.githooks/prepare-commit`, stop if its output exceeds the approved scope, and stage only approved generated outputs. Before committing, present the full cached diff plus current HEAD and `git write-tree`, and repeat approval if either identity changes. Pre-commit hooks validate only and must not modify the index.
+- **Letting commit messages drift from staged contents** — A semantic commit message must describe every approved staged change. If migrations, generated assets, or unrelated files are staged, either split the commit or ask the user to approve the broader scope.
 - **Force-pushing or hard-resetting** — These are destructive. Ask the user first.
 - **Bypassing hooks** — Never run `git commit --no-verify` — it skips the beads task handoff.
 - **Creating task-tracking noise** — Do not create Beads tasks for discussion, read-only inspection, retros, or task-management bookkeeping. One coherent body of work gets one task; follow-ups are only for separate future work.
 - **Treating scaffold presence as proof that tooling is ready** — Generated files and hook scripts are not the same thing as a bootstrapped local tool state. Verify operational readiness explicitly.
 - **Ending tracked-file work without a commit message handoff** — If git-tracked files changed, the handoff must include a meaningful, high-signal conventional commit message.
+- **Over-closing exploratory prompts** — When the user is running a thought exercise, guessing game, or design probe, do not rush from sparse evidence to one precise answer. Start with calibrated broad hypotheses, visible uncertainty, and a small steering question.
 
 ## Code Quality Anti-Patterns
 
@@ -37,6 +44,12 @@ Hard constraints for all agents working on agent-bootstrap. These are non-negoti
 - **Testing implementation details** — Test observable behavior, not internal structure.
 - **Testing below the module boundary by default** — Prefer interface-level tests unless the risk truly lives inside the module.
 - **Mocking what you don't own** — Prefer real integrations at system boundaries when feasible.
+- **Making infrastructure green by weakening the guardrail** — For infrastructure, deployment, configuration, or YAML-heavy changes, the red phase should prove unsafe state is rejected by a non-mutating contract check. Do not remove or relax a preflight, plan check, secret check, ingress check, or fail-loud message just to make a deployment pass.
+- **Using a live deployment as a red/green check** — A failed apply may already have mutated external state, and a successful deploy is release verification rather than TDD green. Require separate explicit authorization naming the target and operation before any live apply/deploy.
+
+## Operations Anti-Patterns
+
+- **Treating monitoring as mutation authority** — A request to monitor, babysit, follow through, or watch a deployment authorizes observation, not retries, restarts, fixes, deployments, repository edits, external writes, or messages. Diagnose read-only and report the blocker unless the user separately authorized the action; after an authorized detour, return to the watched run.
 
 ---
 

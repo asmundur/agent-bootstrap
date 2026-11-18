@@ -62,9 +62,18 @@ Or specify the target directory and harness explicitly:
 /path/to/agent-bootstrap/scripts/scaffold.sh [target-dir] [all|claude-code|codex|antigravity]
 ```
 
+Inspect the complete refresh plan without changing the target, Git
+configuration, or Beads runtime:
+
+```bash
+/path/to/agent-bootstrap/scripts/scaffold.sh --check [target-dir] [all|claude-code|codex|antigravity]
+```
+
 After first scaffold adoption, run the generated `/bootstrap` skill in the target repository. That step is responsible for reading the repository and hydrating project-specific values into the scaffold. Later scaffold refreshes do not require `/bootstrap` unless project facts need to be re-read from the codebase.
 
-If the scaffold preserved pre-existing files as `*.pre-scaffold.*`, resolve them before the next refresh with `/resolve-adopted-artifacts`.
+If the scaffold kept pre-existing targets active and produced
+`*.scaffold-candidate.*` sidecars, resolve them before the next refresh with
+`/resolve-adopted-artifacts`.
 
 ## What The Scaffold Does
 
@@ -75,7 +84,13 @@ On apply, the scaffold:
 - writes `.agent-scaffold.json` as the scaffold state file
 - preserves colliding files instead of silently replacing them
 - refuses to overwrite drifted scaffold-managed files
-- attempts `bd bootstrap --yes --json` when Beads is available
+- renders and preflights the complete target set before the first checkout write
+- trusts an existing state file only after verifying scaffold ownership and its required schema
+- verifies the existing Beads runtime or attempts `bd bootstrap --yes --json` after files and state are consistent
+
+Known preflight failures leave the target unchanged. The apply phase is not a
+crash-recovery transaction: an I/O or machine failure during installation has
+no rollback journal.
 
 The legacy `scripts/bootstrap.sh` entrypoint remains as a thin wrapper around `scripts/scaffold.sh`.
 

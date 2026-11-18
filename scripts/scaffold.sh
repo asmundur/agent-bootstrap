@@ -9,6 +9,12 @@ if [[ ! -d "${TEMPLATE_DIR}" ]]; then
   exit 1
 fi
 
+CHECK_ONLY="false"
+if [[ "${1:-}" == "--check" ]]; then
+  CHECK_ONLY="true"
+  shift
+fi
+
 TARGET_DIR="${1:-.}"
 AGENT_HARNESS="${2:-${AGENT_HARNESS:-all}}"
 STATE_FILE=".agent-scaffold.json"
@@ -23,21 +29,232 @@ case "${AGENT_HARNESS}" in
 esac
 
 cd "${TARGET_DIR}"
+TARGET_ROOT="$(pwd -P)"
+PLAN_BASE="${TMPDIR:-/tmp}"
+if [[ "${TARGET_ROOT}" == "/" ]]; then
+  echo "Error: refusing to scaffold the filesystem root." >&2
+  exit 1
+fi
+if ! PLAN_BASE="$(cd "${PLAN_BASE}" 2>/dev/null && pwd -P)"; then
+  echo "Error: TMPDIR is not an accessible directory: ${TMPDIR:-/tmp}" >&2
+  exit 1
+fi
+case "${PLAN_BASE}" in
+  "${TARGET_ROOT}"|"${TARGET_ROOT}"/*)
+    echo "Error: TMPDIR must resolve outside the scaffold target for a zero-write preflight." >&2
+    exit 1
+    ;;
+esac
 
-echo "Applying scaffold in $(pwd)..."
+PLAN_DIR="$(mktemp -d "${PLAN_BASE}/agent-scaffold-plan.XXXXXX")"
 
-mkdir -p .agents/architecture .agents/context .agents/plans .agents/workflows
-mkdir -p .claude/agents .claude/skills
-mkdir -p .codex/skills
-mkdir -p .antigravity/skills
-mkdir -p .beads
-mkdir -p .githooks
+cleanup_plan() {
+  rm -rf "${PLAN_DIR}"
+}
+trap cleanup_plan EXIT
+
+if [[ "${CHECK_ONLY}" == "true" ]]; then
+  echo "Checking scaffold in $(pwd)..."
+else
+  echo "Planning scaffold in $(pwd)..."
+fi
+
+CAPTURED_INPUT_CHECKSUM=""
+CAPTURED_INPUT_MODE=""
+capture_regular_input() {
+  local source="$1"
+  local destination="$2"
+  local copied_checksum=""
+  local source_checksum_after=""
+  local source_mode_after=""
+
+  if [[ ! -f "${source}" || -L "${source}" ]]; then
+    echo "Error: scaffold input must remain a regular file while it is captured: ${source}" >&2
+    return 1
+  fi
+
+  CAPTURED_INPUT_CHECKSUM="$(shasum -a 256 "${source}" | awk '{print $1}')"
+  if stat -f '%Lp' "${source}" >/dev/null 2>&1; then
+    CAPTURED_INPUT_MODE="$(stat -f '%Lp' "${source}")"
+  else
+    CAPTURED_INPUT_MODE="$(stat -c '%a' "${source}")"
+  fi
+
+  cp "${source}" "${destination}"
+  copied_checksum="$(shasum -a 256 "${destination}" | awk '{print $1}')"
+  if [[ ! -f "${source}" || -L "${source}" ]]; then
+    echo "Error: scaffold input changed type while it was captured: ${source}" >&2
+    return 1
+  fi
+  source_checksum_after="$(shasum -a 256 "${source}" | awk '{print $1}')"
+  if stat -f '%Lp' "${source}" >/dev/null 2>&1; then
+    source_mode_after="$(stat -f '%Lp' "${source}")"
+  else
+    source_mode_after="$(stat -c '%a' "${source}")"
+  fi
+
+  if [[ "${copied_checksum}" != "${CAPTURED_INPUT_CHECKSUM}" ]] \
+  || [[ "${source_checksum_after}" != "${CAPTURED_INPUT_CHECKSUM}" ]] \
+  || [[ "${source_mode_after}" != "${CAPTURED_INPUT_MODE}" ]]; then
+    echo "Error: scaffold input changed while it was being captured: ${source}" >&2
+    return 1
+  fi
+}
+
+SNAPSHOT_KIND=""
+SNAPSHOT_CHECKSUM=""
+SNAPSHOT_MODE=""
+snapshot_path_metadata() {
+  local target="$1"
+
+  SNAPSHOT_KIND="missing"
+  SNAPSHOT_CHECKSUM=""
+  SNAPSHOT_MODE=""
+
+  if [[ -L "${target}" ]]; then
+    SNAPSHOT_KIND="symlink"
+    SNAPSHOT_CHECKSUM="$(readlink "${target}" | shasum -a 256 | awk '{print $1}')"
+  elif [[ -f "${target}" ]]; then
+    SNAPSHOT_KIND="file"
+    SNAPSHOT_CHECKSUM="$(shasum -a 256 "${target}" | awk '{print $1}')"
+  elif [[ -d "${target}" ]]; then
+    SNAPSHOT_KIND="directory"
+  elif [[ -e "${target}" ]]; then
+    SNAPSHOT_KIND="other"
+  fi
+
+  if [[ "${SNAPSHOT_KIND}" != "missing" ]]; then
+    if stat -f '%Lp' "${target}" >/dev/null 2>&1; then
+      SNAPSHOT_MODE="$(stat -f '%Lp' "${target}")"
+    else
+      SNAPSHOT_MODE="$(stat -c '%a' "${target}")"
+    fi
+  fi
+}
 
 existing_state_file=""
-if [[ -f "${STATE_FILE}" ]]; then
-  existing_state_file="${STATE_FILE}"
-elif [[ -f "${LEGACY_STATE_FILE}" ]]; then
-  existing_state_file="${LEGACY_STATE_FILE}"
+existing_state_target=""
+existing_state_checksum=""
+existing_state_mode=""
+initial_state_preflight_error=""
+snapshot_path_metadata "${STATE_FILE}"
+initial_state_kind="${SNAPSHOT_KIND}"
+initial_state_checksum="${SNAPSHOT_CHECKSUM}"
+initial_state_mode="${SNAPSHOT_MODE}"
+snapshot_path_metadata "${LEGACY_STATE_FILE}"
+initial_legacy_state_kind="${SNAPSHOT_KIND}"
+initial_legacy_state_checksum="${SNAPSHOT_CHECKSUM}"
+initial_legacy_state_mode="${SNAPSHOT_MODE}"
+
+if [[ "${initial_state_kind}" == "file" ]]; then
+  existing_state_target="${STATE_FILE}"
+elif [[ "${initial_state_kind}" == "missing" && "${initial_legacy_state_kind}" == "file" && ! -L ".claude" ]]; then
+  existing_state_target="${LEGACY_STATE_FILE}"
+fi
+
+if [[ -n "${existing_state_target}" ]]; then
+  captured_state_file="${PLAN_DIR}/existing-state.json"
+  if ! capture_regular_input "${existing_state_target}" "${captured_state_file}"; then
+    exit 1
+  fi
+  existing_state_checksum="${CAPTURED_INPUT_CHECKSUM}"
+  existing_state_mode="${CAPTURED_INPUT_MODE}"
+  if [[ "${existing_state_target}" == "${STATE_FILE}" ]] \
+  && { [[ "${existing_state_checksum}" != "${initial_state_checksum}" ]] \
+    || [[ "${existing_state_mode}" != "${initial_state_mode}" ]]; }; then
+    echo "Error: scaffold state changed before it could be captured: ${existing_state_target}" >&2
+    exit 1
+  fi
+  if [[ "${existing_state_target}" == "${LEGACY_STATE_FILE}" ]] \
+  && { [[ "${existing_state_checksum}" != "${initial_legacy_state_checksum}" ]] \
+    || [[ "${existing_state_mode}" != "${initial_legacy_state_mode}" ]] \
+    || [[ -L ".claude" ]]; }; then
+    echo "Error: legacy scaffold state changed before it could be captured: ${existing_state_target}" >&2
+    exit 1
+  fi
+  if ! jq empty "${captured_state_file}" >/dev/null 2>&1; then
+    initial_state_preflight_error="scaffold state is not valid JSON: ${existing_state_target}"
+  elif [[ "$(jq -r '.generatedBy // empty' "${captured_state_file}")" != "agent-bootstrap" ]]; then
+    initial_state_preflight_error="scaffold state ownership could not be verified: ${existing_state_target}"
+  elif ! jq -e '
+    def digest:
+      type == "string" and test("^[0-9a-f]{64}$");
+    type == "object"
+    and (.generatedBy == "agent-bootstrap")
+    and (.variables | type == "object")
+    and all(.variables | to_entries[]; .value | type == "string")
+    and (.files | type == "array")
+    and all(.files[];
+      type == "object"
+      and (.target | type == "string")
+      and (.source | type == "string")
+      and (.category | type == "string")
+      and (.checksum | digest))
+    and (([.files[].target] | unique | length) == (.files | length))
+    and ((.adoptionConflicts // []) | type == "array")
+    and all((.adoptionConflicts // [])[];
+      type == "object"
+      and (.target | type == "string")
+      and ((.scaffoldCandidate // .preservedBackup) | type == "string")
+      and (.detectedAt | type == "string")
+      and ((.targetChecksum // .originalChecksum) | digest)
+      and ((.candidateChecksum // .preservedChecksum) | digest)
+      and ((.status // "unresolved") | type == "string"))
+  ' "${captured_state_file}" >/dev/null 2>&1; then
+    initial_state_preflight_error="scaffold state does not match the required schema: ${existing_state_target}"
+  else
+    existing_state_file="${captured_state_file}"
+  fi
+fi
+
+captured_beads_config_file=""
+captured_beads_config_checksum=""
+captured_beads_config_mode=""
+snapshot_path_metadata ".beads/config.yaml"
+initial_beads_config_kind="${SNAPSHOT_KIND}"
+initial_beads_config_checksum="${SNAPSHOT_CHECKSUM}"
+initial_beads_config_mode="${SNAPSHOT_MODE}"
+if [[ "${initial_beads_config_kind}" == "file" && ! -L ".beads" ]]; then
+  captured_beads_config_file="${PLAN_DIR}/existing-beads-config.yaml"
+  if ! capture_regular_input ".beads/config.yaml" "${captured_beads_config_file}"; then
+    exit 1
+  fi
+  if [[ -L ".beads" ]]; then
+    echo "Error: scaffold input parent changed to a symlink while it was captured: .beads/config.yaml" >&2
+    exit 1
+  fi
+  captured_beads_config_checksum="${CAPTURED_INPUT_CHECKSUM}"
+  captured_beads_config_mode="${CAPTURED_INPUT_MODE}"
+  if [[ "${captured_beads_config_checksum}" != "${initial_beads_config_checksum}" ]] \
+  || [[ "${captured_beads_config_mode}" != "${initial_beads_config_mode}" ]]; then
+    echo "Error: scaffold input changed before it could be captured: .beads/config.yaml" >&2
+    exit 1
+  fi
+fi
+
+captured_clone_contract_file=""
+captured_clone_contract_checksum=""
+captured_clone_contract_mode=""
+snapshot_path_metadata ".beads/clone-contract.json"
+initial_clone_contract_kind="${SNAPSHOT_KIND}"
+initial_clone_contract_checksum="${SNAPSHOT_CHECKSUM}"
+initial_clone_contract_mode="${SNAPSHOT_MODE}"
+if [[ "${initial_clone_contract_kind}" == "file" && ! -L ".beads" ]]; then
+  captured_clone_contract_file="${PLAN_DIR}/existing-clone-contract.json"
+  if ! capture_regular_input ".beads/clone-contract.json" "${captured_clone_contract_file}"; then
+    exit 1
+  fi
+  if [[ -L ".beads" ]]; then
+    echo "Error: scaffold input parent changed to a symlink while it was captured: .beads/clone-contract.json" >&2
+    exit 1
+  fi
+  captured_clone_contract_checksum="${CAPTURED_INPUT_CHECKSUM}"
+  captured_clone_contract_mode="${CAPTURED_INPUT_MODE}"
+  if [[ "${captured_clone_contract_checksum}" != "${initial_clone_contract_checksum}" ]] \
+  || [[ "${captured_clone_contract_mode}" != "${initial_clone_contract_mode}" ]]; then
+    echo "Error: scaffold input changed before it could be captured: .beads/clone-contract.json" >&2
+    exit 1
+  fi
 fi
 
 json_value() {
@@ -59,12 +276,7 @@ json_value() {
 inferred_beads_prefix() {
   local value=""
 
-  if [[ -n "${LIVE_BEADS_PREFIX:-}" ]]; then
-    printf '%s\n' "${LIVE_BEADS_PREFIX}"
-    return 0
-  fi
-
-  if [[ -f ".beads/config.yaml" ]]; then
+  if [[ -n "${captured_beads_config_file}" ]]; then
     value="$(awk -F: '
       /^[[:space:]]*issue-prefix[[:space:]]*:/ {
         value = $2
@@ -73,15 +285,15 @@ inferred_beads_prefix() {
         print value
         exit
       }
-    ' ".beads/config.yaml")"
+    ' "${captured_beads_config_file}")"
     if [[ -n "${value}" ]]; then
       printf '%s\n' "${value}"
       return 0
     fi
   fi
 
-  if [[ -f ".beads/clone-contract.json" ]]; then
-    value="$(jq -r '.issue_prefix // empty' ".beads/clone-contract.json" 2>/dev/null || true)"
+  if [[ -n "${captured_clone_contract_file}" ]]; then
+    value="$(jq -r '.issue_prefix // empty' "${captured_clone_contract_file}" 2>/dev/null || true)"
     if [[ -n "${value}" ]]; then
       printf '%s\n' "${value}"
       return 0
@@ -91,29 +303,11 @@ inferred_beads_prefix() {
   printf 'prj\n'
 }
 
-inferred_live_beads_prefix() {
-  local value=""
-
-  if ! command -v bd >/dev/null 2>&1; then
-    return 0
-  fi
-
-  value="$(bd config get issue_prefix --json 2>/dev/null | jq -r '.value // empty' 2>/dev/null || true)"
-  if [[ -n "${value}" && "${value}" != "null" ]]; then
-    printf '%s\n' "${value}"
-  fi
-}
-
 inferred_beads_bootstrap_commands_json() {
   local value=""
 
-  if [[ -n "${LIVE_BEADS_PREFIX:-}" ]]; then
-    printf '%s\n' '["bd bootstrap --yes --json","git config core.hooksPath .githooks"]'
-    return 0
-  fi
-
-  if [[ -f ".beads/clone-contract.json" ]]; then
-    value="$(jq -c '(.bootstrap_commands // empty) | select(type == "array" and length > 0)' ".beads/clone-contract.json" 2>/dev/null || true)"
+  if [[ -n "${captured_clone_contract_file}" ]]; then
+    value="$(jq -c '(.bootstrap_commands // empty) | select(type == "array" and length > 0)' "${captured_clone_contract_file}" 2>/dev/null || true)"
     if [[ -n "${value}" ]]; then
       printf '%s\n' "${value}"
       return 0
@@ -123,7 +317,6 @@ inferred_beads_bootstrap_commands_json() {
   printf '%s\n' '["bd bootstrap --yes --json","git config core.hooksPath .githooks"]'
 }
 
-LIVE_BEADS_PREFIX="$(inferred_live_beads_prefix)"
 PROJECT_NAME="$(json_value "PROJECT_NAME" "__PROJECT_NAME__")"
 PROJECT_DESCRIPTION="$(json_value "PROJECT_DESCRIPTION" "Project description pending /bootstrap.")"
 TECH_STACK="$(json_value "TECH_STACK" "Unknown")"
@@ -211,6 +404,172 @@ ADOPTION_CONFLICT_STATUSES=()
 VALUE_DRIFT_SAFE_TARGETS=()
 ADOPTED_VALUE_NAMES=()
 ADOPTED_VALUE_VALUES=()
+PREFLIGHT_ERRORS=()
+OBSERVED_PATHS=()
+OBSERVED_KINDS=()
+OBSERVED_CHECKSUMS=()
+OBSERVED_MODES=()
+PLANNED_CONTENTS=()
+PLANNED_DESTINATIONS=()
+PLANNED_EXECUTABLES=()
+PLANNED_DESCRIPTIONS=()
+PLANNED_REMOVALS=()
+STATE_PLAN_PATH=""
+EXISTING_STATE_PATHS_VALID="true"
+
+OBSERVED_PATHS+=("${STATE_FILE}")
+OBSERVED_KINDS+=("${initial_state_kind}")
+OBSERVED_CHECKSUMS+=("${initial_state_checksum}")
+OBSERVED_MODES+=("${initial_state_mode}")
+OBSERVED_PATHS+=("${LEGACY_STATE_FILE}")
+OBSERVED_KINDS+=("${initial_legacy_state_kind}")
+OBSERVED_CHECKSUMS+=("${initial_legacy_state_checksum}")
+OBSERVED_MODES+=("${initial_legacy_state_mode}")
+if [[ -n "${initial_state_preflight_error}" ]]; then
+  PREFLIGHT_ERRORS+=("${initial_state_preflight_error}")
+fi
+OBSERVED_PATHS+=(".beads/config.yaml")
+OBSERVED_KINDS+=("${initial_beads_config_kind}")
+OBSERVED_CHECKSUMS+=("${initial_beads_config_checksum}")
+OBSERVED_MODES+=("${initial_beads_config_mode}")
+OBSERVED_PATHS+=(".beads/clone-contract.json")
+OBSERVED_KINDS+=("${initial_clone_contract_kind}")
+OBSERVED_CHECKSUMS+=("${initial_clone_contract_checksum}")
+OBSERVED_MODES+=("${initial_clone_contract_mode}")
+
+record_preflight_error() {
+  PREFLIGHT_ERRORS+=("$1")
+}
+
+is_safe_checkout_relative_path() {
+  local target="$1"
+
+  case "${target}" in
+    ""|-*|/*|"."|".."|../*|*/../*|*/..|./*|*/./*|*/.|*//*|*$'\n'*|*$'\r'*|*$'\t'*)
+      return 1
+      ;;
+  esac
+
+  return 0
+}
+
+validate_existing_state_paths() {
+  if [[ -z "${existing_state_file}" || "${EXISTING_STATE_PATHS_VALID}" != "true" ]]; then
+    return 0
+  fi
+
+  if jq -e '
+    def safe_path:
+      type == "string"
+      and length > 0
+      and (startswith("-") | not)
+      and (startswith("/") | not)
+      and (contains("//") | not)
+      and (test("(^|/)\\.\\.?(/|$)") | not)
+      and (test("[\u0000-\u001F\u007F]") | not);
+    (.files | type == "array")
+    and all(.files[];
+      type == "object"
+      and (.target | safe_path)
+      and ((.source // "") as $source
+        | ($source == "" or ($source | safe_path))))
+    and ((.adoptionConflicts // []) | type == "array")
+    and all((.adoptionConflicts // [])[];
+      type == "object"
+      and (.target | safe_path)
+      and ((.scaffoldCandidate // .preservedBackup // "") | safe_path))
+  ' "${existing_state_file}" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  EXISTING_STATE_PATHS_VALID="false"
+  record_preflight_error "scaffold state contains an invalid, unsafe, or non-checkout-relative managed path"
+}
+
+path_has_symlink_parent() {
+  local target="$1"
+  local parent=""
+  local component=""
+  local partial=""
+  local -a components=()
+
+  parent="$(dirname "${target}")"
+  IFS='/' read -r -a components <<< "${parent}"
+  for component in "${components[@]}"; do
+    [[ -z "${component}" || "${component}" == "." ]] && continue
+    partial="${partial:+${partial}/}${component}"
+    if [[ -L "${partial}" ]]; then
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+file_mode() {
+  local target="$1"
+
+  if stat -f '%Lp' "${target}" >/dev/null 2>&1; then
+    stat -f '%Lp' "${target}"
+  else
+    stat -c '%a' "${target}"
+  fi
+}
+
+symlink_checksum() {
+  local target="$1"
+
+  readlink "${target}" | shasum -a 256 | awk '{print $1}'
+}
+
+observe_path() {
+  local target="$1"
+  local kind="missing"
+  local checksum=""
+  local mode=""
+
+  if [[ -L "${target}" ]]; then
+    kind="symlink"
+    checksum="$(symlink_checksum "${target}")"
+    mode="$(file_mode "${target}")"
+  elif [[ -f "${target}" ]]; then
+    kind="file"
+    checksum="$(file_checksum "${target}")"
+    mode="$(file_mode "${target}")"
+  elif [[ -d "${target}" ]]; then
+    kind="directory"
+    mode="$(file_mode "${target}")"
+  elif [[ -e "${target}" ]]; then
+    kind="other"
+    mode="$(file_mode "${target}")"
+  fi
+
+  OBSERVED_PATHS+=("${target}")
+  OBSERVED_KINDS+=("${kind}")
+  OBSERVED_CHECKSUMS+=("${checksum}")
+  OBSERVED_MODES+=("${mode}")
+  LAST_OBSERVED_KIND="${kind}"
+  LAST_OBSERVED_CHECKSUM="${checksum}"
+  LAST_OBSERVED_MODE="${mode}"
+}
+
+plan_content_write() {
+  local tmp="$1"
+  local destination="$2"
+  local executable="$3"
+  local description="$4"
+  local planned="${PLAN_DIR}/content-${#PLANNED_CONTENTS[@]}"
+
+  mv "${tmp}" "${planned}"
+  PLANNED_CONTENTS+=("${planned}")
+  PLANNED_DESTINATIONS+=("${destination}")
+  PLANNED_EXECUTABLES+=("${executable}")
+  PLANNED_DESCRIPTIONS+=("${description}")
+}
+
+plan_removal() {
+  PLANNED_REMOVALS+=("$1")
+}
 
 record_generated() {
   GENERATED_TARGETS+=("$1")
@@ -226,7 +585,7 @@ file_checksum() {
 state_file_checksum() {
   local target="$1"
 
-  if [[ -z "${existing_state_file}" ]]; then
+  if [[ -z "${existing_state_file}" || "${EXISTING_STATE_PATHS_VALID}" != "true" ]]; then
     return 0
   fi
 
@@ -330,9 +689,7 @@ record_adopted_value() {
   for ((i = 0; i < ${#ADOPTED_VALUE_NAMES[@]}; i++)); do
     if [[ "${ADOPTED_VALUE_NAMES[$i]}" == "${name}" ]]; then
       if [[ "${ADOPTED_VALUE_VALUES[$i]}" != "${value}" ]]; then
-        echo "Error: scaffold variable ${name} has conflicting adopted values while reading ${target}" >&2
-        echo "Refusing to guess which scaffold value should win." >&2
-        exit 1
+        record_preflight_error "scaffold variable ${name} has conflicting adopted values while reading ${target}; refusing to guess which value should win"
       fi
       return 0
     fi
@@ -576,8 +933,8 @@ adopt_agents_value_drift() {
   local normalized_file=""
   local normalized_checksum=""
 
-  values_file="$(mktemp "${TMPDIR:-/tmp}/scaffold-agents-values.XXXXXX")"
-  normalized_file="$(mktemp "${TMPDIR:-/tmp}/scaffold-agents-normalized.XXXXXX")"
+  values_file="$(mktemp "${PLAN_DIR}/scaffold-agents-values.XXXXXX")"
+  normalized_file="$(mktemp "${PLAN_DIR}/scaffold-agents-normalized.XXXXXX")"
   agents_value_snapshot "${target}" "${values_file}" "${normalized_file}"
   normalized_checksum="$(file_checksum "${normalized_file}")"
 
@@ -590,8 +947,8 @@ adopt_agents_value_drift() {
 
   rm -f "${values_file}" "${normalized_file}"
 
-  values_file="$(mktemp "${TMPDIR:-/tmp}/scaffold-agents-values.XXXXXX")"
-  normalized_file="$(mktemp "${TMPDIR:-/tmp}/scaffold-agents-normalized.XXXXXX")"
+  values_file="$(mktemp "${PLAN_DIR}/scaffold-agents-values.XXXXXX")"
+  normalized_file="$(mktemp "${PLAN_DIR}/scaffold-agents-normalized.XXXXXX")"
   agents_legacy_command_snapshot "${target}" "${values_file}" "${normalized_file}"
   normalized_checksum="$(file_checksum "${normalized_file}")"
 
@@ -715,8 +1072,8 @@ adopt_template_value_drift() {
   [[ "${source}" == *.tmpl ]] || return 1
   [[ -f "${TEMPLATE_DIR}/${source}" ]] || return 1
 
-  values_file="$(mktemp "${TMPDIR:-/tmp}/scaffold-template-values.XXXXXX")"
-  normalized_file="$(mktemp "${TMPDIR:-/tmp}/scaffold-template-normalized.XXXXXX")"
+  values_file="$(mktemp "${PLAN_DIR}/scaffold-template-values.XXXXXX")"
+  normalized_file="$(mktemp "${PLAN_DIR}/scaffold-template-normalized.XXXXXX")"
 
   if ! template_value_snapshot "${target}" "${source}" "${values_file}" "${normalized_file}"; then
     rm -f "${values_file}" "${normalized_file}"
@@ -741,14 +1098,27 @@ adopt_scaffold_value_drift() {
   local expected_checksum=""
   local current_checksum=""
 
-  if [[ -z "${existing_state_file}" ]]; then
+  if [[ -z "${existing_state_file}" || "${EXISTING_STATE_PATHS_VALID}" != "true" ]]; then
     return 0
   fi
 
   while IFS=$'\t' read -r target source expected_checksum; do
     [[ -z "${target}" || -z "${expected_checksum}" ]] && continue
+    if ! is_safe_checkout_relative_path "${target}"; then
+      record_preflight_error "scaffold state contains an unsafe managed target: ${target}"
+      continue
+    fi
+    if [[ -n "${source}" ]] && ! is_safe_checkout_relative_path "${source}"; then
+      record_preflight_error "scaffold state contains an unsafe template source for ${target}: ${source}"
+      continue
+    fi
+    if [[ -L "${target}" ]] || path_has_symlink_parent "${target}"; then
+      record_preflight_error "scaffold-managed value source must not be a symlink or use a symlinked parent: ${target}"
+      continue
+    fi
     [[ -f "${target}" ]] || continue
 
+    observe_path "${target}"
     current_checksum="$(file_checksum "${target}")"
     if [[ "${current_checksum}" == "${expected_checksum}" ]]; then
       continue
@@ -817,23 +1187,30 @@ ensure_safe_to_replace() {
   local expected_checksum=""
   local current_checksum=""
 
-  if [[ ! -e "${target}" ]]; then
+  if [[ ! -e "${target}" && ! -L "${target}" ]]; then
     return 0
+  fi
+
+  observe_path "${target}"
+  preflight_destination_parent "${target}"
+  if [[ ! -f "${target}" || -L "${target}" ]]; then
+    record_preflight_error "obsolete scaffold target is not a regular file: ${target}"
+    return 1
   fi
 
   expected_checksum="$(state_file_checksum "${target}")"
   if [[ -z "${expected_checksum}" ]]; then
-    echo "Error: no scaffold checksum is recorded for existing file: ${target}" >&2
-    echo "Refusing to treat an untracked file as scaffold-managed." >&2
-    exit 1
+    record_preflight_error "no scaffold checksum is recorded for obsolete file ${target}; refusing to remove it"
+    return 1
   fi
 
   current_checksum="$(file_checksum "${target}")"
   if [[ "${current_checksum}" != "${expected_checksum}" ]]; then
-    echo "Error: scaffold-managed file has local edits: ${target}" >&2
-    echo "Refusing to overwrite drifted scaffold-managed files." >&2
-    exit 1
+    record_preflight_error "obsolete scaffold-managed file has local edits: ${target}. Refusing to remove drifted scaffold-managed files."
+    return 1
   fi
+
+  return 0
 }
 
 has_unresolved_adoption_conflicts() {
@@ -845,50 +1222,58 @@ has_unresolved_adoption_conflicts() {
 }
 
 verify_existing_adoption_conflicts() {
-  local count=""
   local target=""
   local artifact=""
   local target_checksum=""
   local artifact_checksum=""
   local mode=""
 
-  if ! has_unresolved_adoption_conflicts; then
+  if [[ "${EXISTING_STATE_PATHS_VALID}" != "true" ]] \
+  || ! has_unresolved_adoption_conflicts; then
     return 0
   fi
 
   while IFS=$'\t' read -r target artifact target_checksum artifact_checksum mode; do
     [[ -z "${target}" ]] && continue
 
+    if ! is_safe_checkout_relative_path "${target}" \
+    || ! is_safe_checkout_relative_path "${artifact}"; then
+      record_preflight_error "adoption conflict contains an unsafe checkout-relative path: ${target} -> ${artifact}"
+      continue
+    fi
+    if [[ -L "${target}" || -L "${artifact}" ]] \
+    || path_has_symlink_parent "${target}" \
+    || path_has_symlink_parent "${artifact}"; then
+      record_preflight_error "adoption conflict paths must not be symlinks or use symlinked parents: ${target} -> ${artifact}"
+      continue
+    fi
+
     if [[ "${mode}" == "candidate" ]]; then
       if [[ ! -f "${target}" ]]; then
-        echo "Error: active adoption-conflict target is missing: ${target}" >&2
-        exit 1
-      fi
-
-      if [[ "$(file_checksum "${target}")" != "${target_checksum}" ]]; then
-        echo "Error: active adoption-conflict target changed since capture: ${target}" >&2
-        exit 1
+        record_preflight_error "active adoption-conflict target is missing: ${target}"
+      else
+        observe_path "${target}"
+        if [[ "$(file_checksum "${target}")" != "${target_checksum}" ]]; then
+          record_preflight_error "active adoption-conflict target changed since capture: ${target}"
+        fi
       fi
     fi
 
     if [[ ! -f "${artifact}" ]]; then
       if [[ "${mode}" == "candidate" ]]; then
-        echo "Error: scaffold adoption-conflict candidate is missing: ${artifact}" >&2
+        record_preflight_error "scaffold adoption-conflict candidate is missing: ${artifact} (target ${target})"
       else
-        echo "Error: preserved adoption-conflict backup is missing: ${artifact}" >&2
+        record_preflight_error "preserved adoption-conflict backup is missing: ${artifact} (target ${target})"
       fi
-      echo "Target still awaiting resolution: ${target}" >&2
-      exit 1
-    fi
-
-    if [[ "$(file_checksum "${artifact}")" != "${artifact_checksum}" ]]; then
-      if [[ "${mode}" == "candidate" ]]; then
-        echo "Error: scaffold adoption-conflict candidate changed since capture: ${artifact}" >&2
-      else
-        echo "Error: preserved adoption-conflict backup changed since capture: ${artifact}" >&2
+    else
+      observe_path "${artifact}"
+      if [[ "$(file_checksum "${artifact}")" != "${artifact_checksum}" ]]; then
+        if [[ "${mode}" == "candidate" ]]; then
+          record_preflight_error "scaffold adoption-conflict candidate changed since capture: ${artifact} (target ${target})"
+        else
+          record_preflight_error "preserved adoption-conflict backup changed since capture: ${artifact} (target ${target})"
+        fi
       fi
-      echo "Target still awaiting resolution: ${target}" >&2
-      exit 1
     fi
   done < <(jq -r '.adoptionConflicts[]? | [
     .target,
@@ -898,16 +1283,87 @@ verify_existing_adoption_conflicts() {
     (if has("scaffoldCandidate") then "candidate" else "backup" end)
   ] | @tsv' "${existing_state_file}")
 
-  count="$(jq -r '.adoptionConflicts | length' "${existing_state_file}")"
-  echo "Error: scaffold has ${count} unresolved adoption conflict(s)." >&2
-  jq -r '.adoptionConflicts[] |
-    if has("scaffoldCandidate") then
-      "  - " + .target + " (scaffold candidate at " + .scaffoldCandidate + ")"
-    else
-      "  - " + .target + " (preserved at " + .preservedBackup + ")"
-    end' "${existing_state_file}" >&2
-  echo "Run /resolve-adopted-artifacts before re-running scaffold." >&2
-  exit 1
+  record_preflight_error "scaffold has unresolved adoption conflicts; run /resolve-adopted-artifacts before refreshing"
+}
+
+validate_rendered_content() {
+  local tmp="$1"
+  local destination="$2"
+
+  if [[ "${destination}" == *.json ]] && ! jq empty "${tmp}" >/dev/null 2>&1; then
+    record_preflight_error "generated JSON is invalid: ${destination}"
+  fi
+
+  if [[ "${destination}" == .githooks/* || "${destination}" == *.sh ]]; then
+    if ! bash -n "${tmp}" >/dev/null 2>&1; then
+      record_preflight_error "generated shell is invalid: ${destination}"
+    fi
+  fi
+}
+
+preflight_destination_parent() {
+  local destination="$1"
+  local parent=""
+  local previous=""
+
+  parent="$(dirname "${destination}")"
+
+  if ! is_safe_checkout_relative_path "${destination}"; then
+    record_preflight_error "destination is not a safe checkout-relative path: ${destination}"
+    return 0
+  fi
+  if path_has_symlink_parent "${destination}"; then
+    record_preflight_error "destination parent contains a symlink: ${destination}"
+    return 0
+  fi
+
+  while [[ ! -e "${parent}" ]]; do
+    previous="${parent}"
+    parent="$(dirname "${parent}")"
+    if [[ "${parent}" == "${previous}" ]]; then
+      break
+    fi
+  done
+
+  if [[ ! -d "${parent}" ]]; then
+    record_preflight_error "destination parent is not a directory for ${destination}: ${parent}"
+  elif [[ ! -w "${parent}" ]]; then
+    record_preflight_error "destination parent is not writable for ${destination}: ${parent}"
+  elif [[ ! -x "${parent}" ]]; then
+    record_preflight_error "destination parent is not searchable for ${destination}: ${parent}"
+  fi
+}
+
+preflight_state_destination() {
+  if [[ ! -e "${STATE_FILE}" && ! -L "${STATE_FILE}" ]]; then
+    return 0
+  fi
+
+  if [[ -L "${STATE_FILE}" || ! -f "${STATE_FILE}" ]]; then
+    record_preflight_error "scaffold state destination must be missing or a regular file: ${STATE_FILE}"
+  fi
+}
+
+record_managed_migration_blockers() {
+  local destination="$1"
+  local tmp="$2"
+  local expected_checksum="$3"
+  local current_checksum="$4"
+
+  if [[ "${current_checksum}" != "${expected_checksum}" ]]; then
+    return 0
+  fi
+
+  if [[ "${destination}" == ".githooks/pre-commit" ]] \
+  && grep -Fq "# Preserved from pre-existing .githooks/pre-commit during scaffold adoption." "${destination}"; then
+    record_preflight_error "legacy managed combined hook requires explicit resolution: classify .githooks/pre-commit behavior into .githooks/pre-commit.validate or .githooks/prepare-commit.local"
+  fi
+
+  if [[ "${destination}" == ".beads/clone-contract.json" ]] \
+  && [[ "$(jq -r '.jsonl_export // empty' "${destination}" 2>/dev/null || true)" == "issues.jsonl" ]] \
+  && [[ "$(jq -r '.jsonl_export // empty' "${tmp}" 2>/dev/null || true)" == ".beads/issues.jsonl" ]]; then
+    record_preflight_error ".beads/clone-contract.json requires explicit jsonl_export migration from issues.jsonl to .beads/issues.jsonl"
+  fi
 }
 
 write_from_tmp() {
@@ -922,61 +1378,73 @@ write_from_tmp() {
   local candidate=""
   local target_checksum=""
 
-  if [[ -e "${dst}" ]]; then
+  if [[ "${make_executable}" == "true" ]]; then
+    chmod 0755 "${tmp}"
+  else
+    chmod 0644 "${tmp}"
+  fi
+  validate_rendered_content "${tmp}" "${dst}"
+  preflight_destination_parent "${dst}"
+  checksum="$(file_checksum "${tmp}")"
+
+  observe_path "${dst}"
+  if [[ "${LAST_OBSERVED_KIND}" != "missing" ]]; then
+    if [[ "${LAST_OBSERVED_KIND}" != "file" ]]; then
+      record_preflight_error "scaffold target is not a regular file: ${dst}"
+      rm -f "${tmp}"
+      record_generated "${dst}" "${src}" "${category}" "${checksum}"
+      return 0
+    fi
+
     expected_checksum="$(state_file_checksum "${dst}")"
     if [[ -z "${expected_checksum}" ]]; then
       candidate="$(scaffold_candidate_path "${dst}")"
-      if [[ -e "${candidate}" ]]; then
-        echo "Error: scaffold candidate path already exists: ${candidate}" >&2
-        echo "Resolve or remove the stale scaffold candidate before re-running scaffold." >&2
-        exit 1
+      preflight_destination_parent "${candidate}"
+      observe_path "${candidate}"
+      if [[ "${LAST_OBSERVED_KIND}" != "missing" ]]; then
+        record_preflight_error "scaffold candidate path already exists: ${candidate}"
+        rm -f "${tmp}"
+      else
+        target_checksum="$(file_checksum "${dst}")"
+        record_adoption_conflict "${dst}" "${candidate}" "${BOOTSTRAP_DATE}" "${target_checksum}" "${checksum}"
+        plan_content_write "${tmp}" "${candidate}" "${make_executable}" "keep ${dst}; create scaffold candidate ${candidate}"
       fi
 
-      if [[ "${make_executable}" == "true" ]]; then
-        chmod +x "${tmp}"
-      fi
-      target_checksum="$(file_checksum "${dst}")"
-      checksum="$(file_checksum "${tmp}")"
-      mv "${tmp}" "${candidate}"
-      record_adoption_conflict "${dst}" "${candidate}" "${BOOTSTRAP_DATE}" "${target_checksum}" "${checksum}"
       record_generated "${dst}" "${src}" "${category}" "${checksum}"
-      echo "  ! kept active pre-existing ${dst}; wrote scaffold candidate ${candidate}"
       return 0
     fi
 
     current_checksum="$(file_checksum "${dst}")"
+    record_managed_migration_blockers "${dst}" "${tmp}" "${expected_checksum}" "${current_checksum}"
     if [[ "${current_checksum}" != "${expected_checksum}" ]]; then
       if cmp -s "${dst}" "${tmp}"; then
         :
       elif is_value_drift_safe "${dst}"; then
         :
       else
-        echo "Error: scaffold-managed file has local edits: ${dst}" >&2
-        echo "Refusing to overwrite drifted scaffold-managed files." >&2
-        exit 1
+        record_preflight_error "scaffold-managed file has local edits: ${dst}. Refusing to overwrite drifted scaffold-managed files."
       fi
     fi
   fi
 
-  mv "${tmp}" "${dst}"
-  if [[ "${make_executable}" == "true" ]]; then
-    chmod +x "${dst}"
-  fi
-  checksum="$(file_checksum "${dst}")"
+  plan_content_write "${tmp}" "${dst}" "${make_executable}" "write ${dst}"
   record_generated "${dst}" "${src}" "${category}" "${checksum}"
-  echo "  ✓ ${dst}"
 }
 
 mark_obsolete_targets() {
   local target=""
   local found="false"
 
-  if [[ -z "${existing_state_file}" ]]; then
+  if [[ -z "${existing_state_file}" || "${EXISTING_STATE_PATHS_VALID}" != "true" ]]; then
     return 0
   fi
 
   while IFS= read -r target; do
     [[ -z "${target}" ]] && continue
+    if ! is_safe_checkout_relative_path "${target}"; then
+      record_preflight_error "scaffold state contains an unsafe obsolete target: ${target}"
+      continue
+    fi
     found="false"
     for generated in "${GENERATED_TARGETS[@]}"; do
       if [[ "${generated}" == "${target}" ]]; then
@@ -990,6 +1458,27 @@ mark_obsolete_targets() {
   done < <(jq -r '.files[].target' "${existing_state_file}")
 }
 
+preflight_unique_plan_targets() {
+  local i=0
+  local j=0
+
+  for ((i=0; i<${#GENERATED_TARGETS[@]}; i++)); do
+    for ((j=i+1; j<${#GENERATED_TARGETS[@]}; j++)); do
+      if [[ "${GENERATED_TARGETS[$i]}" == "${GENERATED_TARGETS[$j]}" ]]; then
+        record_preflight_error "generated target appears more than once in the render plan: ${GENERATED_TARGETS[$i]}"
+      fi
+    done
+  done
+
+  for ((i=0; i<${#PLANNED_DESTINATIONS[@]}; i++)); do
+    for ((j=i+1; j<${#PLANNED_DESTINATIONS[@]}; j++)); do
+      if [[ "${PLANNED_DESTINATIONS[$i]}" == "${PLANNED_DESTINATIONS[$j]}" ]]; then
+        record_preflight_error "destination appears more than once in the apply plan: ${PLANNED_DESTINATIONS[$i]}"
+      fi
+    done
+  done
+}
+
 prune_obsolete_targets() {
   local target=""
 
@@ -998,10 +1487,11 @@ prune_obsolete_targets() {
   fi
 
   for target in "${OBSOLETE_TARGETS[@]}"; do
-    [[ ! -f "${target}" ]] && continue
-    ensure_safe_to_replace "${target}"
-    rm -f "${target}"
-    echo "  ✓ removed obsolete ${target}"
+    observe_path "${target}"
+    [[ "${LAST_OBSERVED_KIND}" == "missing" ]] && continue
+    if ensure_safe_to_replace "${target}"; then
+      plan_removal "${target}"
+    fi
   done
 }
 
@@ -1023,7 +1513,7 @@ copy_template() {
   local dst="$2"
   local category="${3:-config}"
   local tmp=""
-  tmp="$(mktemp "${TMPDIR:-/tmp}/scaffold-template.XXXXXX")"
+  tmp="$(mktemp "${PLAN_DIR}/scaffold-template.XXXXXX")"
   replace_vars "${TEMPLATE_DIR}/${src}" > "${tmp}"
   if [[ "${dst}" == "AGENTS.md" ]]; then
     merge_agents_local_safety_constraints "${tmp}" "${dst}"
@@ -1036,11 +1526,8 @@ copy_hook() {
   local dst="$2"
   local category="${3:-hook}"
   local tmp=""
-  tmp="$(mktemp "${TMPDIR:-/tmp}/scaffold-hook.XXXXXX")"
+  tmp="$(mktemp "${PLAN_DIR}/scaffold-hook.XXXXXX")"
   cp "${TEMPLATE_DIR}/${src}" "${tmp}"
-  if [[ "${dst}" == ".githooks/pre-commit" ]]; then
-    merge_pre_commit_local_commands "${tmp}" "${dst}"
-  fi
   write_from_tmp "${tmp}" "${dst}" "${src}" "${category}" "true"
 }
 
@@ -1049,88 +1536,23 @@ copy_raw() {
   local dst="$2"
   local category="${3:-config}"
   local tmp=""
-  tmp="$(mktemp "${TMPDIR:-/tmp}/scaffold-raw.XXXXXX")"
+  tmp="$(mktemp "${PLAN_DIR}/scaffold-raw.XXXXXX")"
   cp "${TEMPLATE_DIR}/${src}" "${tmp}"
   write_from_tmp "${tmp}" "${dst}" "${src}" "${category}"
 }
 
 copy_beads_clone_contract() {
   local tmp=""
-  tmp="$(mktemp "${TMPDIR:-/tmp}/scaffold-clone-contract.XXXXXX")"
-  jq -n \
+  tmp="$(mktemp "${PLAN_DIR}/scaffold-clone-contract.XXXXXX")"
+  if ! jq \
     --arg issue_prefix "${BEADS_PREFIX}" \
     --argjson bootstrap_commands "${BEADS_BOOTSTRAP_COMMANDS_JSON}" \
-    '{
-      mode: "bootstrap_required",
-      backend: "dolt",
-      issue_prefix: $issue_prefix,
-      jsonl_export: ".beads/issues.jsonl",
-      bootstrap_commands: $bootstrap_commands,
-      read_probe: "bd status --json",
-      stale_runtime_recovery: {
-        verify_hooks_path: "git config --get core.hooksPath",
-        local_pins: [
-          ".beads/dolt-server.port"
-        ],
-        clear_when_unowned: [
-          ".beads/dolt-server.pid",
-          ".beads/dolt-server.log",
-          ".beads/dolt-server.lock",
-          ".beads/dolt-server.activity"
-        ],
-        retry_probes: [
-          "bd status --json",
-          "bd ready --json"
-        ]
-      }
-    }' > "${tmp}"
+    '.issue_prefix = $issue_prefix
+    | .bootstrap_commands = $bootstrap_commands' \
+    "${TEMPLATE_DIR}/beads/clone-contract.json.tmpl" > "${tmp}"; then
+    record_preflight_error "could not render generated JSON: .beads/clone-contract.json"
+  fi
   write_from_tmp "${tmp}" ".beads/clone-contract.json" "beads/clone-contract.json.tmpl" "beads"
-}
-
-merge_pre_commit_local_commands() {
-  local tmp="$1"
-  local existing="$2"
-  local extra=""
-
-  if [[ ! -f "${existing}" ]]; then
-    return 0
-  fi
-
-  extra="$(mktemp "${TMPDIR:-/tmp}/scaffold-pre-commit-extra.XXXXXX")"
-  awk '
-    NR == FNR {
-      seen[$0] = 1
-      next
-    }
-    /^#!/ { next }
-    /^[[:space:]]*set[[:space:]]+-euo[[:space:]]+pipefail[[:space:]]*$/ { next }
-    /^[[:space:]]*$/ { next }
-    /_common\.sh/ && /source/ { next }
-    /beads-pre-commit\.sh/ { next }
-    /^# Preserved from pre-existing \.githooks\/pre-commit during scaffold adoption\./ { next }
-    /^[[:space:]]*if[[:space:]]+![[:space:]]+command[[:space:]]+-v[[:space:]]+bd[[:space:]]*>/ {
-      skipping_legacy_beads = 1
-      next
-    }
-    skipping_legacy_beads {
-      if ($0 ~ /^[[:space:]]*exit[[:space:]]+"?\$\{?BD_HOOK_EXIT\}?"?[[:space:]]*$/) {
-        skipping_legacy_beads = 0
-      }
-      next
-    }
-    seen[$0] { next }
-    { print }
-  ' "${tmp}" "${existing}" > "${extra}"
-
-  if [[ -s "${extra}" ]]; then
-    {
-      printf '\n'
-      printf '# Preserved from pre-existing .githooks/pre-commit during scaffold adoption.\n'
-      cat "${extra}"
-    } >> "${tmp}"
-  fi
-
-  rm -f "${extra}"
 }
 
 merge_agents_local_safety_constraints() {
@@ -1142,9 +1564,14 @@ merge_agents_local_safety_constraints() {
   if [[ ! -f "${existing}" ]]; then
     return 0
   fi
+  if [[ -L "${existing}" ]] || path_has_symlink_parent "${existing}"; then
+    record_preflight_error "AGENTS.md safety section source must not be a symlink or use a symlinked parent: ${existing}"
+    return 0
+  fi
+  observe_path "${existing}"
 
-  section="$(mktemp "${TMPDIR:-/tmp}/scaffold-agents-safety.XXXXXX")"
-  rendered="$(mktemp "${TMPDIR:-/tmp}/scaffold-agents-rendered.XXXXXX")"
+  section="$(mktemp "${PLAN_DIR}/scaffold-agents-safety.XXXXXX")"
+  rendered="$(mktemp "${PLAN_DIR}/scaffold-agents-rendered.XXXXXX")"
 
   awk '
     /^## Project-Specific Safety Constraints[[:space:]]*$/ {
@@ -1193,8 +1620,201 @@ merge_agents_local_safety_constraints() {
   rm -f "${section}"
 }
 
+preflight_project_hook_extensions() {
+  local extension=""
+
+  observe_path ".githooks/pre-commit.local"
+  if [[ "${LAST_OBSERVED_KIND}" != "missing" ]]; then
+    record_preflight_error "legacy .githooks/pre-commit.local must be classified as pre-commit.validate or prepare-commit.local"
+  fi
+
+  for extension in ".githooks/pre-commit.validate" ".githooks/prepare-commit.local"; do
+    observe_path "${extension}"
+    if [[ "${LAST_OBSERVED_KIND}" != "missing" ]]; then
+      if [[ "${LAST_OBSERVED_KIND}" != "file" ]]; then
+        record_preflight_error "project hook extension is not a regular file: ${extension}"
+      elif [[ ! -x "${extension}" ]]; then
+        record_preflight_error "project hook extension must be executable: ${extension}"
+      fi
+    fi
+  done
+}
+
+report_preflight_errors() {
+  local error=""
+
+  if [[ ${#PREFLIGHT_ERRORS[@]} -eq 0 ]]; then
+    return 0
+  fi
+
+  echo "Scaffold preflight failed with ${#PREFLIGHT_ERRORS[@]} blocker(s):" >&2
+  for error in "${PREFLIGHT_ERRORS[@]}"; do
+    echo "  - ${error}" >&2
+  done
+  return 1
+}
+
+recheck_observed_paths() {
+  local i=0
+  local target=""
+  local actual_checksum=""
+  local actual_mode=""
+
+  for ((i=0; i<${#OBSERVED_PATHS[@]}; i++)); do
+    target="${OBSERVED_PATHS[$i]}"
+    if [[ "${OBSERVED_KINDS[$i]}" == "missing" ]]; then
+      if [[ -e "${target}" || -L "${target}" ]]; then
+        record_preflight_error "target changed after preflight (expected missing): ${target}"
+      fi
+      continue
+    fi
+
+    if [[ ! -e "${target}" && ! -L "${target}" ]]; then
+      record_preflight_error "target changed after preflight (now missing): ${target}"
+      continue
+    fi
+
+    case "${OBSERVED_KINDS[$i]}" in
+      file)
+        if [[ ! -f "${target}" || -L "${target}" ]]; then
+          record_preflight_error "target changed type after preflight: ${target}"
+          continue
+        fi
+        actual_checksum="$(file_checksum "${target}")"
+        ;;
+      symlink)
+        if [[ ! -L "${target}" ]]; then
+          record_preflight_error "target changed type after preflight: ${target}"
+          continue
+        fi
+        actual_checksum="$(symlink_checksum "${target}")"
+        ;;
+      directory)
+        if [[ ! -d "${target}" || -L "${target}" ]]; then
+          record_preflight_error "target changed type after preflight: ${target}"
+          continue
+        fi
+        actual_checksum=""
+        ;;
+      *)
+        if [[ -f "${target}" || -d "${target}" || -L "${target}" ]]; then
+          record_preflight_error "target changed type after preflight: ${target}"
+          continue
+        fi
+        actual_checksum=""
+        ;;
+    esac
+    actual_mode="$(file_mode "${target}")"
+    if [[ "${actual_checksum}" != "${OBSERVED_CHECKSUMS[$i]}" ]] \
+    || [[ "${actual_mode}" != "${OBSERVED_MODES[$i]}" ]]; then
+      record_preflight_error "target changed after preflight: ${target}"
+    fi
+  done
+}
+
+recheck_plan_destinations() {
+  local destination=""
+
+  if [[ ${#PLANNED_DESTINATIONS[@]} -gt 0 ]]; then
+    for destination in "${PLANNED_DESTINATIONS[@]}"; do
+      preflight_destination_parent "${destination}"
+    done
+  fi
+  if [[ ${#PLANNED_REMOVALS[@]} -gt 0 ]]; then
+    for destination in "${PLANNED_REMOVALS[@]}"; do
+      preflight_destination_parent "${destination}"
+    done
+  fi
+  preflight_destination_parent "${STATE_FILE}"
+}
+
+print_planned_actions() {
+  local i=0
+
+  for ((i=0; i<${#PLANNED_DESCRIPTIONS[@]}; i++)); do
+    echo "  - ${PLANNED_DESCRIPTIONS[$i]}"
+  done
+  for ((i=0; i<${#PLANNED_REMOVALS[@]}; i++)); do
+    echo "  - remove ${PLANNED_REMOVALS[$i]}"
+  done
+  echo "  - write ${STATE_FILE} last"
+}
+
+install_planned_file() {
+  local source="$1"
+  local destination="$2"
+  local executable="$3"
+  local parent=""
+  local install_tmp=""
+
+  if ! is_safe_checkout_relative_path "${destination}" \
+  || path_has_symlink_parent "${destination}"; then
+    echo "Error: planned destination became unsafe during apply: ${destination}" >&2
+    return 1
+  fi
+  if [[ -L "${destination}" ]] \
+  || { [[ -e "${destination}" ]] && [[ ! -f "${destination}" ]]; }; then
+    echo "Error: planned destination is no longer a regular file or missing: ${destination}" >&2
+    return 1
+  fi
+
+  parent="$(dirname "${destination}")"
+  mkdir -p "${parent}"
+  install_tmp="$(mktemp "${parent}/.agent-scaffold-install.XXXXXX")"
+  cp "${source}" "${install_tmp}"
+  if [[ "${executable}" == "true" ]]; then
+    chmod 0755 "${install_tmp}"
+  else
+    chmod 0644 "${install_tmp}"
+  fi
+  mv "${install_tmp}" "${destination}"
+}
+
+apply_planned_changes() {
+  local i=0
+
+  for ((i=0; i<${#PLANNED_CONTENTS[@]}; i++)); do
+    install_planned_file \
+      "${PLANNED_CONTENTS[$i]}" \
+      "${PLANNED_DESTINATIONS[$i]}" \
+      "${PLANNED_EXECUTABLES[$i]}"
+    echo "  ✓ ${PLANNED_DESCRIPTIONS[$i]}"
+  done
+
+  for ((i=0; i<${#PLANNED_REMOVALS[@]}; i++)); do
+    rm -f -- "${PLANNED_REMOVALS[$i]}"
+    echo "  ✓ removed ${PLANNED_REMOVALS[$i]}"
+  done
+
+  install_planned_file "${STATE_PLAN_PATH}" "${STATE_FILE}" "false"
+  echo "  ✓ ${STATE_FILE}"
+}
+
+run_post_apply_operations() {
+  BEADS_BOOTSTRAP_STATUS="not_attempted"
+
+  if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    git config core.hooksPath .githooks >/dev/null 2>&1 || true
+  fi
+
+  if command -v bd >/dev/null 2>&1; then
+    if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+      if bd status --json >/dev/null 2>&1 \
+      || (bd bootstrap --yes --json >/dev/null 2>&1 && bd status --json >/dev/null 2>&1); then
+        BEADS_BOOTSTRAP_STATUS="ok"
+      else
+        BEADS_BOOTSTRAP_STATUS="failed"
+      fi
+    else
+      BEADS_BOOTSTRAP_STATUS="deferred"
+    fi
+  fi
+}
+
+validate_existing_state_paths
 verify_existing_adoption_conflicts
 adopt_scaffold_value_drift
+preflight_project_hook_extensions
 
 copy_template "anti-patterns.md.tmpl" ".agents/anti-patterns.md" "config"
 copy_template "agents/feature-implementation.md.tmpl" ".claude/agents/feature-implementation.md" "agent"
@@ -1212,23 +1832,8 @@ copy_raw "beads/gitignore" ".beads/.gitignore" "beads"
 
 copy_hook "githooks/_common.sh" ".githooks/_common.sh" "hook"
 copy_hook "githooks/beads-pre-commit.sh" ".githooks/beads-pre-commit.sh" "hook"
+copy_hook "githooks/prepare-commit" ".githooks/prepare-commit" "hook"
 copy_hook "githooks/pre-commit" ".githooks/pre-commit" "hook"
-if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-  git config core.hooksPath .githooks >/dev/null 2>&1 || true
-fi
-
-BEADS_BOOTSTRAP_STATUS="not_attempted"
-if command -v bd >/dev/null 2>&1; then
-  if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-    if bd bootstrap --yes --json >/dev/null 2>&1 && bd status --json >/dev/null 2>&1; then
-      BEADS_BOOTSTRAP_STATUS="ok"
-    else
-      BEADS_BOOTSTRAP_STATUS="failed"
-    fi
-  else
-    BEADS_BOOTSTRAP_STATUS="deferred"
-  fi
-fi
 
 if [[ "${AGENT_HARNESS}" == "all" || "${AGENT_HARNESS}" == "codex" || "${AGENT_HARNESS}" == "antigravity" ]]; then
   copy_template "AGENTS.md.tmpl" "AGENTS.md" "config"
@@ -1249,10 +1854,10 @@ if [[ "${AGENT_HARNESS}" == "all" || "${AGENT_HARNESS}" == "claude-code" ]]; the
   if [[ "${AGENT_HARNESS}" == "all" ]]; then
     P_AGENTS_IMPORT="@AGENTS.md\n\n"
   else
-    P_OVERVIEW_SECTION="\n## Project Overview\n\n${P_PROJECT_DESCRIPTION}\n\n- **Tech Stack:** ${P_TECH_STACK}\n- **Language:** ${P_MAIN_LANGUAGE}\n- **Source Directory:** ${P_SOURCE_DIR}\n- **Architecture:** ${P_ARCHITECTURE_PATTERN}\n\n## Essential Commands\n\n\`\`\`bash\n# Build\n${P_BUILD_COMMAND}\n\n# Typecheck (optional)\n${P_TYPECHECK_COMMAND}\n\n# Lint (optional)\n${P_LINT_COMMAND}\n\n# Browser verification (optional)\n${P_BROWSER_VERIFY_COMMAND}\n\n# Test\n${P_TEST_COMMAND}\n\n# Run\n${P_RUN_COMMAND}\n\`\`\`\n\n## Architecture & Key Patterns\n\n${P_ARCHITECTURE_PATTERN}\n\nRun \`/bootstrap\` after first scaffold adoption, or when these values need to be re-hydrated from the existing codebase.\n\n## Durable Artifacts\n\n- **Feature specs:** \`.agents/plans/<feature-slug>.md\`\n- **Ubiquitous language:** \`.agents/context/ubiquitous-language.md\`\n- **Module map:** \`.agents/architecture/module-map.md\`\n\nThese provider-neutral files are created or refreshed by the generated skills.\n\n## Code Style Guidelines\n\n- Match the style of surrounding code\n- Functions should do one thing\n- Name things for what they are, not how they're implemented\n- Validate at system boundaries (user input, external APIs) — trust internal code\n- No dead code, no commented-out blocks, no TODO left behind after a feature\n- Tests are not optional\n\n## Task Tracking — Beads\n\nThis project uses [beads](https://github.com/steveyegge/beads) (\`bd\`) for task tracking. Issue prefix: \`${P_BEADS_PREFIX}\`.\n\nBefore starting new work:\n    bd ready --json\n    bd update <id> --claim --json\n\nCreating a task:\n    bd create --title \"...\" -p 2 --json\n\nClosing a task:\n    bd close <id> --reason \"done\" --json\n\n\`.beads/issues.jsonl\` is the git-tracked snapshot; the pre-commit hook refreshes it via \`bd export --no-memories\` and auto-stages changes, so task state travels with commits. Do not edit \`.beads/issues.jsonl\` by hand. Do not bypass the hook (\`--no-verify\`).\n"
+    P_OVERVIEW_SECTION="\n## Project Overview\n\n${P_PROJECT_DESCRIPTION}\n\n- **Tech Stack:** ${P_TECH_STACK}\n- **Language:** ${P_MAIN_LANGUAGE}\n- **Source Directory:** ${P_SOURCE_DIR}\n- **Architecture:** ${P_ARCHITECTURE_PATTERN}\n\n## Essential Commands\n\n\`\`\`bash\n# Build\n${P_BUILD_COMMAND}\n\n# Typecheck (optional)\n${P_TYPECHECK_COMMAND}\n\n# Lint (optional)\n${P_LINT_COMMAND}\n\n# Browser verification (optional)\n${P_BROWSER_VERIFY_COMMAND}\n\n# Test\n${P_TEST_COMMAND}\n\n# Run\n${P_RUN_COMMAND}\n\`\`\`\n\n## Architecture & Key Patterns\n\n${P_ARCHITECTURE_PATTERN}\n\nRun \`/bootstrap\` after first scaffold adoption, or when these values need to be re-hydrated from the existing codebase.\n\n## Durable Artifacts\n\n- **Feature specs:** \`.agents/plans/<feature-slug>.md\`\n- **Ubiquitous language:** \`.agents/context/ubiquitous-language.md\`\n- **Module map:** \`.agents/architecture/module-map.md\`\n\nThese provider-neutral files are created or refreshed by the generated skills.\n\n## Code Style Guidelines\n\n- Match the style of surrounding code\n- Functions should do one thing\n- Name things for what they are, not how they're implemented\n- Validate at system boundaries (user input, external APIs) — trust internal code\n- No dead code, no commented-out blocks, no TODO left behind after a feature\n- Tests are not optional\n\n## Task Tracking — Beads\n\nThis project uses [beads](https://github.com/steveyegge/beads) (\`bd\`) for task tracking. Issue prefix: \`${P_BEADS_PREFIX}\`.\n\nBefore starting new work:\n    bd ready --json\n    bd update <id> --claim --json\n\nCreating a task:\n    bd create --title \"...\" -p 2 --json\n\nClosing a task:\n    bd close <id> --reason \"done\" --json\n\n\`.beads/issues.jsonl\` is the git-tracked issue-only snapshot. Before final staged review, run \`.githooks/prepare-commit\` to refresh it with the export syntax supported by the installed Beads version, then stage the approved snapshot explicitly. The pre-commit hook validates freshness and index stability only; it must not modify or stage files. Do not edit \`.beads/issues.jsonl\` by hand. Do not bypass the hook (\`--no-verify\`).\n"
   fi
 
-  tmp_claude="$(mktemp "${TMPDIR:-/tmp}/scaffold-claude.XXXXXX")"
+  tmp_claude="$(mktemp "${PLAN_DIR}/scaffold-claude.XXXXXX")"
   replace_vars "${TEMPLATE_DIR}/CLAUDE.md.tmpl" > "${tmp_claude}"
 
   awk '
@@ -1274,12 +1879,13 @@ if [[ "${AGENT_HARNESS}" == "all" || "${AGENT_HARNESS}" == "claude-code" ]]; the
   write_from_tmp "${tmp_claude}.rendered" ".claude/CLAUDE.md" "CLAUDE.md.tmpl" "config"
 fi
 
+preflight_unique_plan_targets
 mark_obsolete_targets
 prune_obsolete_targets
 
-state_files_json="$(mktemp "${TMPDIR:-/tmp}/scaffold-state-files.XXXXXX")"
-state_conflicts_json="$(mktemp "${TMPDIR:-/tmp}/scaffold-state-conflicts.XXXXXX")"
-state_tmp="$(mktemp "${TMPDIR:-/tmp}/scaffold-state.XXXXXX")"
+state_files_json="$(mktemp "${PLAN_DIR}/scaffold-state-files.XXXXXX")"
+state_conflicts_json="$(mktemp "${PLAN_DIR}/scaffold-state-conflicts.XXXXXX")"
+state_tmp="$(mktemp "${PLAN_DIR}/scaffold-state.XXXXXX")"
 : > "${state_files_json}"
 : > "${state_conflicts_json}"
 
@@ -1335,7 +1941,7 @@ jq -n \
   --slurpfile adoptionConflicts "${state_conflicts_json}" \
   '{
     generatedBy: "agent-bootstrap",
-    templateVersion: "1.2.0",
+    templateVersion: "1.3.0",
     generatedAt: $generatedAt,
     agentHarness: $agentHarness,
     templateSource: "bootstrap-templates/templates/universal",
@@ -1360,13 +1966,53 @@ jq -n \
   }
   + (if ($adoptionConflicts | length) > 0 then { adoptionConflicts: $adoptionConflicts } else {} end)
   + { files: $files }' > "${state_tmp}"
-mv "${state_tmp}" "${STATE_FILE}"
-rm -f "${state_files_json}" "${state_conflicts_json}"
-echo "  ✓ ${STATE_FILE}"
 
-if [[ -f "${LEGACY_STATE_FILE}" ]]; then
-  rm -f "${LEGACY_STATE_FILE}"
+if ! jq empty "${state_tmp}" >/dev/null 2>&1; then
+  record_preflight_error "generated scaffold state is invalid JSON"
 fi
+preflight_state_destination
+preflight_destination_parent "${STATE_FILE}"
+observe_path "${STATE_FILE}"
+STATE_PLAN_PATH="${PLAN_DIR}/state.json"
+mv "${state_tmp}" "${STATE_PLAN_PATH}"
+rm -f "${state_files_json}" "${state_conflicts_json}"
+
+if [[ -e "${LEGACY_STATE_FILE}" || -L "${LEGACY_STATE_FILE}" ]]; then
+  observe_path "${LEGACY_STATE_FILE}"
+  preflight_destination_parent "${LEGACY_STATE_FILE}"
+  if [[ "${existing_state_target}" != "${LEGACY_STATE_FILE}" ]]; then
+    record_preflight_error "legacy scaffold state exists alongside ${STATE_FILE}; refusing unverified removal: ${LEGACY_STATE_FILE}"
+  elif [[ ! -f "${LEGACY_STATE_FILE}" || -L "${LEGACY_STATE_FILE}" ]]; then
+    record_preflight_error "legacy scaffold state is not a regular file: ${LEGACY_STATE_FILE}"
+  elif [[ -z "${existing_state_file}" ]] || ! jq -e '
+    .generatedBy == "agent-bootstrap"
+    and (.files | type == "array")
+  ' "${existing_state_file}" >/dev/null 2>&1; then
+    record_preflight_error "legacy scaffold state ownership could not be verified: ${LEGACY_STATE_FILE}"
+  else
+    plan_removal "${LEGACY_STATE_FILE}"
+  fi
+fi
+
+if ! report_preflight_errors; then
+  exit 1
+fi
+
+recheck_observed_paths
+recheck_plan_destinations
+if ! report_preflight_errors; then
+  exit 1
+fi
+
+if [[ "${CHECK_ONLY}" == "true" ]]; then
+  print_planned_actions
+  echo "Scaffold check passed."
+  exit 0
+fi
+
+echo "Applying scaffold..."
+apply_planned_changes
+run_post_apply_operations
 
 echo ""
 echo "Scaffold applied."

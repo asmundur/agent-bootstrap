@@ -24,6 +24,8 @@ If a scaffold candidate would break or change existing behavior in a way the sca
 
 Do not create target-project Beads issues just to run adoption cleanup or document agent housekeeping. Use the existing body-of-work task when one exists. If the adoption pass discovers real follow-up product work, file that separately and narrowly.
 
+Before any task-tracker mutation, upstream edit, target-project archive/move, generated-file refresh, or other repository mutation, capture the original worktree baseline for the target project. If the approved work will also edit an upstream `agent-bootstrap` checkout, capture a separate original baseline there before its first mutation. Keep each baseline in task/session handoff context, start a task-owned change ledger for each checkout, and never redefine a post-mutation worktree as the baseline.
+
 ## Step 1 — Load The Conflict Set
 
 Read `.agent-scaffold.json`.
@@ -260,6 +262,14 @@ For the target project:
 - move each `scaffoldCandidate` into its original `target` path, unless the approved resolution explicitly merged upstream-adopted or project-local-preserve value into the target first
 - remove any consumed scaffold candidate sidecars
 
+For `.githooks/pre-commit` conflicts, keep the scaffold-owned `.githooks/pre-commit` and `.githooks/prepare-commit` targets as clean dispatchers from `bootstrap-templates/templates/universal/githooks/`. Classify each approved repository-specific legacy behavior by contract:
+
+- non-mutating commit validation belongs in executable `.githooks/pre-commit.validate`; it may inspect the proposed commit and fail, but must not modify the worktree or index
+- generation, formatting, fixing, export, or any other intentional mutation belongs in executable `.githooks/prepare-commit.local`; it runs only after preparation/staging approval and before the final cached-diff review
+- repository-specific affected-test versus full-suite policy belongs under `## Project-Specific Safety Constraints` in `AGENTS.md`, with exact commands and trigger boundaries
+
+Do not automatically parse, extract, or replay arbitrary shell statements from a legacy hook. Treat the legacy hook as code: preserve it until every behavior is understood, show the classification and rewritten standalone scripts to the user, and install only the approved result. Do not splice legacy statements into either scaffold-managed dispatcher.
+
 When a project-local preserved constraint applies to `AGENTS.md`, merge it into the scaffold target under `## Project-Specific Safety Constraints`. Keep the wording narrow and concrete. Do not use this local section for broad workflow lessons, because those belong upstream.
 
 Examples:
@@ -283,5 +293,6 @@ Report:
 - which legacy artifacts were archived
 - which findings became upstream source changes, scaffold variables/extension points, project-local preserves, or obsolete/noise
 - whether any upstream changes were proposed or applied
+- the original baseline and task-owned change ledger for every checkout mutated
 
 Once complete, the repo is eligible to run `scripts/scaffold.sh` again.

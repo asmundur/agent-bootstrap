@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+hook_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${hook_dir}/_common.sh"
+
+cd "${repo_root}"
+require_main_git_index "prepare-commit"
+
+entry_tree="$(git_index_tree)"
+prepare_commit_local="${repo_root}/.githooks/prepare-commit.local"
+require_executable_hook_extension "${prepare_commit_local}" "prepare-commit"
+if [[ -f "${prepare_commit_local}" && -x "${prepare_commit_local}" && ! -L "${prepare_commit_local}" ]]; then
+  prepare_status=0
+  prepare_index_status=0
+  "${prepare_commit_local}" "$@" || prepare_status=$?
+  assert_git_index_tree_unchanged "${entry_tree}" "${prepare_commit_local}" \
+    || prepare_index_status=$?
+  if [[ "${prepare_status}" -ne 0 ]]; then
+    echo >&2 "prepare-commit: ${prepare_commit_local} failed with status ${prepare_status}."
+    exit "${prepare_status}"
+  fi
+  if [[ "${prepare_index_status}" -ne 0 ]]; then
+    exit "${prepare_index_status}"
+  fi
+fi
+
+if has_beads_path; then
+  require_safe_beads_paths "prepare-commit"
+  require_beads_cli
+  beads_hook_status=0
+  beads_hook_index_status=0
+  run_beads_hook pre-commit "$@" || beads_hook_status=$?
+  assert_git_index_tree_unchanged "${entry_tree}" "Beads preparation" \
+    || beads_hook_index_status=$?
+  if [[ "${beads_hook_status}" -ne 0 ]]; then
+    echo >&2 "prepare-commit: Beads preparation failed with status ${beads_hook_status}."
+    exit "${beads_hook_status}"
+  fi
+  if [[ "${beads_hook_index_status}" -ne 0 ]]; then
+    exit "${beads_hook_index_status}"
+  fi
+
+  beads_export_status=0
+  beads_export_index_status=0
+  export_beads_snapshot_to "${beads_snapshot_path}" || beads_export_status=$?
+  assert_git_index_tree_unchanged "${entry_tree}" "Beads export" \
+    || beads_export_index_status=$?
+  if [[ "${beads_export_status}" -ne 0 ]]; then
+    exit "${beads_export_status}"
+  fi
+  if [[ "${beads_export_index_status}" -ne 0 ]]; then
+    exit "${beads_export_index_status}"
+  fi
+  echo "prepare-commit: refreshed ${beads_snapshot_relative} in the working tree without staging it."
+fi
+
+echo "prepare-commit: Git index unchanged."
+echo "prepare-commit: inspect the generated changes, stage each approved generated file, review 'git diff --cached', then run plain 'git commit'."

@@ -1,7 +1,7 @@
 {
   "generatedBy": "agent-bootstrap",
-  "templateVersion": "1.2.0",
-  "generatedAt": "2026-05-03T01:09:24Z",
+  "templateVersion": "1.3.0",
+  "generatedAt": "2026-07-29T19:47:38Z",
   "agentHarness": "all",
   "templateSource": "bootstrap-templates/templates/universal",
   "variables": {
@@ -20,47 +20,248 @@
     "SCAFFOLD_COMMAND": "scripts/scaffold.sh",
     "AGENT_HARNESS": "all",
     "BEADS_PREFIX": "age",
-    "BOOTSTRAP_DATE": "2026-05-03T01:09:24Z"
+    "BOOTSTRAP_DATE": "2026-07-29T19:47:38Z"
   },
   "files": [
-    { "target": ".agents/anti-patterns.md", "source": "anti-patterns.md.tmpl", "category": "config", "checksum": "fe5b3be41e47c89bc4c99a26a6879b31bcdd83dd443dd1b9697db0d1d3b92763" },
-    { "target": ".claude/agents/feature-implementation.md", "source": "agents/feature-implementation.md.tmpl", "category": "agent", "checksum": "d1fc13f0bf285e6fb387cd7d2f34a6e111439b5e690f6ee067532b79ea725dbf" },
-    { "target": ".claude/agents/git-manager.md", "source": "agents/git-manager.md.tmpl", "category": "agent", "checksum": "c5f6f46227ac2a5df22e991164674bd221e7c185e63328ccef2e125b91046777" },
-    { "target": ".claude/skills/bootstrap.md", "source": "skills/bootstrap.md.tmpl", "category": "skill", "checksum": "704e958fbe003c186525b96aabae0030e3153c38dd1505e0d36faf5058ce3bb6" },
-    { "target": ".claude/skills/grill-me.md", "source": "skills/grill-me.md.tmpl", "category": "skill", "checksum": "1c0283d34fc0532084515b726194812733af2ba3a171214587b1ce64fabd94d8" },
-    { "target": ".claude/skills/ubiquitous-language.md", "source": "skills/ubiquitous-language.md.tmpl", "category": "skill", "checksum": "9a3d279ec9218d016e73ac280c2a0112a33bf47238172af8783f7584150cb228" },
-    { "target": ".claude/skills/improve-architecture.md", "source": "skills/improve-architecture.md.tmpl", "category": "skill", "checksum": "02f5ecb29c286bc2ff5dcd4b7d5bc183a70c32524fd7714b260801037146dae9" },
-    { "target": ".claude/skills/tdd.md", "source": "skills/tdd.md.tmpl", "category": "skill", "checksum": "6e4c093a86c924baf0f47946158ee9a19d8c4c3926c2b65f33f8bb2c01f0f250" },
-    { "target": ".claude/skills/feature-start.md", "source": "skills/feature-start.md.tmpl", "category": "skill", "checksum": "fa34e985847756a73ab05f3d3bc854f70cf1105a7f043c2973c7105f1f4c0ed1" },
-    { "target": ".claude/skills/retro.md", "source": "skills/retro.md.tmpl", "category": "skill", "checksum": "c5d5ab88c7eff032065c85b52d7bd6692a701012aeed8411fb87f2860ea5c6b4" },
-    { "target": ".claude/skills/resolve-adopted-artifacts.md", "source": "skills/resolve-adopted-artifacts.md.tmpl", "category": "skill", "checksum": "8e040000c76028421ca09c1716df5f811d4749e984c1887fdfd57db2f1bbd345" },
-    { "target": ".claude/skills/audit-beads-quality.md", "source": "skills/audit-beads-quality.md.tmpl", "category": "skill", "checksum": "f3a3bcef06650144646dfbd88584c38e44a9a192c337105a1ec8786bfbf8f9a1" },
-    { "target": ".agents/workflows/feature-workflow.md", "source": "workflows/feature-workflow.md.tmpl", "category": "workflow", "checksum": "70b0dd4ae4bbfb113659db2f613bef40526bac4c46f1d9d27d2f0c2de148f31c" },
-    { "target": ".beads/config.yaml", "source": "beads/config.yaml.tmpl", "category": "beads", "checksum": "0d526c819e163c34c4007a19d4059484a02d5581cd6dd9213ac04870822e3272" },
-    { "target": ".beads/clone-contract.json", "source": "beads/clone-contract.json.tmpl", "category": "beads", "checksum": "230c415ab9c4e84df5c03cc07b3a811ee0f5e3db1ce12d966c002129e4e9a708" },
-    { "target": ".beads/.gitignore", "source": "beads/gitignore", "category": "beads", "checksum": "c319d62537dd64136ea31aaee41cf064b07d2dbbfb15ed08dd94a69179035204" },
-    { "target": ".githooks/_common.sh", "source": "githooks/_common.sh", "category": "hook", "checksum": "49ec38b6c5692dd7a36a9cf4454f03c73babccb2218f5cb93fa22033151ebedc" },
-    { "target": ".githooks/beads-pre-commit.sh", "source": "githooks/beads-pre-commit.sh", "category": "hook", "checksum": "fc873fb3b80e42e2004568328fba7a1f9ad28b203396d86b5ec9d092d3d84800" },
-    { "target": ".githooks/pre-commit", "source": "githooks/pre-commit", "category": "hook", "checksum": "4a1622348133dd3c487692da41b2f9f9f8f6508b1459c1c4a902aef7a8bfdc74" },
-    { "target": "AGENTS.md", "source": "AGENTS.md.tmpl", "category": "config", "checksum": "65ec2d6ca14f6f5b6329f7e0cd1b3d5480df86c5cdc526a1c8d45ad3538f7fbf" },
-    { "target": ".codex/skills/bootstrap.md", "source": "skills/bootstrap.md.tmpl", "category": "skill", "checksum": "704e958fbe003c186525b96aabae0030e3153c38dd1505e0d36faf5058ce3bb6" },
-    { "target": ".antigravity/skills/bootstrap.md", "source": "skills/bootstrap.md.tmpl", "category": "skill", "checksum": "704e958fbe003c186525b96aabae0030e3153c38dd1505e0d36faf5058ce3bb6" },
-    { "target": ".codex/skills/grill-me.md", "source": "skills/grill-me.md.tmpl", "category": "skill", "checksum": "1c0283d34fc0532084515b726194812733af2ba3a171214587b1ce64fabd94d8" },
-    { "target": ".antigravity/skills/grill-me.md", "source": "skills/grill-me.md.tmpl", "category": "skill", "checksum": "1c0283d34fc0532084515b726194812733af2ba3a171214587b1ce64fabd94d8" },
-    { "target": ".codex/skills/ubiquitous-language.md", "source": "skills/ubiquitous-language.md.tmpl", "category": "skill", "checksum": "9a3d279ec9218d016e73ac280c2a0112a33bf47238172af8783f7584150cb228" },
-    { "target": ".antigravity/skills/ubiquitous-language.md", "source": "skills/ubiquitous-language.md.tmpl", "category": "skill", "checksum": "9a3d279ec9218d016e73ac280c2a0112a33bf47238172af8783f7584150cb228" },
-    { "target": ".codex/skills/improve-architecture.md", "source": "skills/improve-architecture.md.tmpl", "category": "skill", "checksum": "02f5ecb29c286bc2ff5dcd4b7d5bc183a70c32524fd7714b260801037146dae9" },
-    { "target": ".antigravity/skills/improve-architecture.md", "source": "skills/improve-architecture.md.tmpl", "category": "skill", "checksum": "02f5ecb29c286bc2ff5dcd4b7d5bc183a70c32524fd7714b260801037146dae9" },
-    { "target": ".codex/skills/tdd.md", "source": "skills/tdd.md.tmpl", "category": "skill", "checksum": "6e4c093a86c924baf0f47946158ee9a19d8c4c3926c2b65f33f8bb2c01f0f250" },
-    { "target": ".antigravity/skills/tdd.md", "source": "skills/tdd.md.tmpl", "category": "skill", "checksum": "6e4c093a86c924baf0f47946158ee9a19d8c4c3926c2b65f33f8bb2c01f0f250" },
-    { "target": ".codex/skills/feature-start.md", "source": "skills/feature-start.md.tmpl", "category": "skill", "checksum": "fa34e985847756a73ab05f3d3bc854f70cf1105a7f043c2973c7105f1f4c0ed1" },
-    { "target": ".antigravity/skills/feature-start.md", "source": "skills/feature-start.md.tmpl", "category": "skill", "checksum": "fa34e985847756a73ab05f3d3bc854f70cf1105a7f043c2973c7105f1f4c0ed1" },
-    { "target": ".codex/skills/retro.md", "source": "skills/retro.md.tmpl", "category": "skill", "checksum": "c5d5ab88c7eff032065c85b52d7bd6692a701012aeed8411fb87f2860ea5c6b4" },
-    { "target": ".antigravity/skills/retro.md", "source": "skills/retro.md.tmpl", "category": "skill", "checksum": "c5d5ab88c7eff032065c85b52d7bd6692a701012aeed8411fb87f2860ea5c6b4" },
-    { "target": ".codex/skills/resolve-adopted-artifacts.md", "source": "skills/resolve-adopted-artifacts.md.tmpl", "category": "skill", "checksum": "8e040000c76028421ca09c1716df5f811d4749e984c1887fdfd57db2f1bbd345" },
-    { "target": ".antigravity/skills/resolve-adopted-artifacts.md", "source": "skills/resolve-adopted-artifacts.md.tmpl", "category": "skill", "checksum": "8e040000c76028421ca09c1716df5f811d4749e984c1887fdfd57db2f1bbd345" },
-    { "target": ".codex/skills/audit-beads-quality.md", "source": "skills/audit-beads-quality.md.tmpl", "category": "skill", "checksum": "f3a3bcef06650144646dfbd88584c38e44a9a192c337105a1ec8786bfbf8f9a1" },
-    { "target": ".antigravity/skills/audit-beads-quality.md", "source": "skills/audit-beads-quality.md.tmpl", "category": "skill", "checksum": "f3a3bcef06650144646dfbd88584c38e44a9a192c337105a1ec8786bfbf8f9a1" },
-    { "target": ".claude/CLAUDE.md", "source": "CLAUDE.md.tmpl", "category": "config", "checksum": "ab1515a440887dce87e513a4bf7102b1d91b8dc94789ef0f66a5e4e82042da74" }
+    {
+      "target": ".agents/anti-patterns.md",
+      "source": "anti-patterns.md.tmpl",
+      "category": "config",
+      "checksum": "ebcb662182c8b063eaa3dbb1f7fc0b01736750cd94a06c0c76f355971f44a4ea"
+    },
+    {
+      "target": ".claude/agents/feature-implementation.md",
+      "source": "agents/feature-implementation.md.tmpl",
+      "category": "agent",
+      "checksum": "edf374f76e9506523ff290ceed01fead88c5a733bdb7403117b2e9b7b819c3b8"
+    },
+    {
+      "target": ".claude/agents/git-manager.md",
+      "source": "agents/git-manager.md.tmpl",
+      "category": "agent",
+      "checksum": "70e988656cc55f277523b82a73dd35c54c1b80121cf607166cdd23bffe9ad974"
+    },
+    {
+      "target": ".claude/skills/bootstrap.md",
+      "source": "skills/bootstrap.md.tmpl",
+      "category": "skill",
+      "checksum": "704e958fbe003c186525b96aabae0030e3153c38dd1505e0d36faf5058ce3bb6"
+    },
+    {
+      "target": ".claude/skills/grill-me.md",
+      "source": "skills/grill-me.md.tmpl",
+      "category": "skill",
+      "checksum": "ab073042ea2b48e2194ab6e93dc930a9d9631a40a0e39ed85f6992f04a35eeab"
+    },
+    {
+      "target": ".claude/skills/ubiquitous-language.md",
+      "source": "skills/ubiquitous-language.md.tmpl",
+      "category": "skill",
+      "checksum": "9a3d279ec9218d016e73ac280c2a0112a33bf47238172af8783f7584150cb228"
+    },
+    {
+      "target": ".claude/skills/improve-architecture.md",
+      "source": "skills/improve-architecture.md.tmpl",
+      "category": "skill",
+      "checksum": "02f5ecb29c286bc2ff5dcd4b7d5bc183a70c32524fd7714b260801037146dae9"
+    },
+    {
+      "target": ".claude/skills/tdd.md",
+      "source": "skills/tdd.md.tmpl",
+      "category": "skill",
+      "checksum": "b8f1d8fa8a6aeaf133240ccca918fb162ab862953aa24ad37e0d17db7d77d5c3"
+    },
+    {
+      "target": ".claude/skills/feature-start.md",
+      "source": "skills/feature-start.md.tmpl",
+      "category": "skill",
+      "checksum": "6798ede07dc98109883e4824f757545bfa32e6a1148199fba0fee2fcfe6ed078"
+    },
+    {
+      "target": ".claude/skills/retro.md",
+      "source": "skills/retro.md.tmpl",
+      "category": "skill",
+      "checksum": "c5d5ab88c7eff032065c85b52d7bd6692a701012aeed8411fb87f2860ea5c6b4"
+    },
+    {
+      "target": ".claude/skills/resolve-adopted-artifacts.md",
+      "source": "skills/resolve-adopted-artifacts.md.tmpl",
+      "category": "skill",
+      "checksum": "9c8a1cbb9f8246052a0d97b8ca8f0cfc4929e21d8520b35d3b16d2a149916306"
+    },
+    {
+      "target": ".claude/skills/audit-beads-quality.md",
+      "source": "skills/audit-beads-quality.md.tmpl",
+      "category": "skill",
+      "checksum": "f3a3bcef06650144646dfbd88584c38e44a9a192c337105a1ec8786bfbf8f9a1"
+    },
+    {
+      "target": ".agents/workflows/feature-workflow.md",
+      "source": "workflows/feature-workflow.md.tmpl",
+      "category": "workflow",
+      "checksum": "2630ef6328d3220ebe7797af4c4cc49ee597f0170b7979dfc908c851d0148988"
+    },
+    {
+      "target": ".beads/config.yaml",
+      "source": "beads/config.yaml.tmpl",
+      "category": "beads",
+      "checksum": "0d526c819e163c34c4007a19d4059484a02d5581cd6dd9213ac04870822e3272"
+    },
+    {
+      "target": ".beads/clone-contract.json",
+      "source": "beads/clone-contract.json.tmpl",
+      "category": "beads",
+      "checksum": "7f25ae56be2f893d0b1a6796472f0f2f10b905bc3103053bc79c24c2a8cd6eee"
+    },
+    {
+      "target": ".beads/.gitignore",
+      "source": "beads/gitignore",
+      "category": "beads",
+      "checksum": "c319d62537dd64136ea31aaee41cf064b07d2dbbfb15ed08dd94a69179035204"
+    },
+    {
+      "target": ".githooks/_common.sh",
+      "source": "githooks/_common.sh",
+      "category": "hook",
+      "checksum": "d62124556f84f08b03296512ee513208536d906b1f4deb90270b92344426002c"
+    },
+    {
+      "target": ".githooks/beads-pre-commit.sh",
+      "source": "githooks/beads-pre-commit.sh",
+      "category": "hook",
+      "checksum": "a709392166f44626997cb6e28cf6fff025ecad480243e77bc112c49d5f102dd2"
+    },
+    {
+      "target": ".githooks/prepare-commit",
+      "source": "githooks/prepare-commit",
+      "category": "hook",
+      "checksum": "968df09a802b13b9180176609ddb4b88f9947ed9a54b982b9fa9af85de43d413"
+    },
+    {
+      "target": ".githooks/pre-commit",
+      "source": "githooks/pre-commit",
+      "category": "hook",
+      "checksum": "190bbea089aebf5dda8c979d4cfc138dcd1e0782eaa021fc2e4ecea1095c82be"
+    },
+    {
+      "target": "AGENTS.md",
+      "source": "AGENTS.md.tmpl",
+      "category": "config",
+      "checksum": "be4238bdc41b723c9905a21a15af994d5ec7bf1f419e5ab0a0d6fae2342639f5"
+    },
+    {
+      "target": ".codex/skills/bootstrap.md",
+      "source": "skills/bootstrap.md.tmpl",
+      "category": "skill",
+      "checksum": "704e958fbe003c186525b96aabae0030e3153c38dd1505e0d36faf5058ce3bb6"
+    },
+    {
+      "target": ".antigravity/skills/bootstrap.md",
+      "source": "skills/bootstrap.md.tmpl",
+      "category": "skill",
+      "checksum": "704e958fbe003c186525b96aabae0030e3153c38dd1505e0d36faf5058ce3bb6"
+    },
+    {
+      "target": ".codex/skills/grill-me.md",
+      "source": "skills/grill-me.md.tmpl",
+      "category": "skill",
+      "checksum": "ab073042ea2b48e2194ab6e93dc930a9d9631a40a0e39ed85f6992f04a35eeab"
+    },
+    {
+      "target": ".antigravity/skills/grill-me.md",
+      "source": "skills/grill-me.md.tmpl",
+      "category": "skill",
+      "checksum": "ab073042ea2b48e2194ab6e93dc930a9d9631a40a0e39ed85f6992f04a35eeab"
+    },
+    {
+      "target": ".codex/skills/ubiquitous-language.md",
+      "source": "skills/ubiquitous-language.md.tmpl",
+      "category": "skill",
+      "checksum": "9a3d279ec9218d016e73ac280c2a0112a33bf47238172af8783f7584150cb228"
+    },
+    {
+      "target": ".antigravity/skills/ubiquitous-language.md",
+      "source": "skills/ubiquitous-language.md.tmpl",
+      "category": "skill",
+      "checksum": "9a3d279ec9218d016e73ac280c2a0112a33bf47238172af8783f7584150cb228"
+    },
+    {
+      "target": ".codex/skills/improve-architecture.md",
+      "source": "skills/improve-architecture.md.tmpl",
+      "category": "skill",
+      "checksum": "02f5ecb29c286bc2ff5dcd4b7d5bc183a70c32524fd7714b260801037146dae9"
+    },
+    {
+      "target": ".antigravity/skills/improve-architecture.md",
+      "source": "skills/improve-architecture.md.tmpl",
+      "category": "skill",
+      "checksum": "02f5ecb29c286bc2ff5dcd4b7d5bc183a70c32524fd7714b260801037146dae9"
+    },
+    {
+      "target": ".codex/skills/tdd.md",
+      "source": "skills/tdd.md.tmpl",
+      "category": "skill",
+      "checksum": "b8f1d8fa8a6aeaf133240ccca918fb162ab862953aa24ad37e0d17db7d77d5c3"
+    },
+    {
+      "target": ".antigravity/skills/tdd.md",
+      "source": "skills/tdd.md.tmpl",
+      "category": "skill",
+      "checksum": "b8f1d8fa8a6aeaf133240ccca918fb162ab862953aa24ad37e0d17db7d77d5c3"
+    },
+    {
+      "target": ".codex/skills/feature-start.md",
+      "source": "skills/feature-start.md.tmpl",
+      "category": "skill",
+      "checksum": "6798ede07dc98109883e4824f757545bfa32e6a1148199fba0fee2fcfe6ed078"
+    },
+    {
+      "target": ".antigravity/skills/feature-start.md",
+      "source": "skills/feature-start.md.tmpl",
+      "category": "skill",
+      "checksum": "6798ede07dc98109883e4824f757545bfa32e6a1148199fba0fee2fcfe6ed078"
+    },
+    {
+      "target": ".codex/skills/retro.md",
+      "source": "skills/retro.md.tmpl",
+      "category": "skill",
+      "checksum": "c5d5ab88c7eff032065c85b52d7bd6692a701012aeed8411fb87f2860ea5c6b4"
+    },
+    {
+      "target": ".antigravity/skills/retro.md",
+      "source": "skills/retro.md.tmpl",
+      "category": "skill",
+      "checksum": "c5d5ab88c7eff032065c85b52d7bd6692a701012aeed8411fb87f2860ea5c6b4"
+    },
+    {
+      "target": ".codex/skills/resolve-adopted-artifacts.md",
+      "source": "skills/resolve-adopted-artifacts.md.tmpl",
+      "category": "skill",
+      "checksum": "9c8a1cbb9f8246052a0d97b8ca8f0cfc4929e21d8520b35d3b16d2a149916306"
+    },
+    {
+      "target": ".antigravity/skills/resolve-adopted-artifacts.md",
+      "source": "skills/resolve-adopted-artifacts.md.tmpl",
+      "category": "skill",
+      "checksum": "9c8a1cbb9f8246052a0d97b8ca8f0cfc4929e21d8520b35d3b16d2a149916306"
+    },
+    {
+      "target": ".codex/skills/audit-beads-quality.md",
+      "source": "skills/audit-beads-quality.md.tmpl",
+      "category": "skill",
+      "checksum": "f3a3bcef06650144646dfbd88584c38e44a9a192c337105a1ec8786bfbf8f9a1"
+    },
+    {
+      "target": ".antigravity/skills/audit-beads-quality.md",
+      "source": "skills/audit-beads-quality.md.tmpl",
+      "category": "skill",
+      "checksum": "f3a3bcef06650144646dfbd88584c38e44a9a192c337105a1ec8786bfbf8f9a1"
+    },
+    {
+      "target": ".claude/CLAUDE.md",
+      "source": "CLAUDE.md.tmpl",
+      "category": "config",
+      "checksum": "6e6792b6900b76c46eed009c6ed5b03b8c6173bac4c1f9c3fe16acc2688e39ee"
+    }
   ]
 }

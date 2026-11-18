@@ -11,13 +11,16 @@ This document defines the design-first feature development pipeline. It is refer
 **Agent:** Current agent instance
 
 Goals:
+- Before any task claim, spec write, branch operation, or edit, capture the original branch/HEAD and staged, unstaged, and untracked worktree baseline
+- Start a task-owned change ledger after baseline capture and carry both records through every handoff
 - Load `.agents/context/ubiquitous-language.md` and `.agents/architecture/module-map.md` when they exist
 - Reach a shared design concept for the feature
 - Resolve high-impact decisions or explicitly park them
 - Record the decisions in `.agents/plans/<feature-slug>.md`
+- Record mutation boundaries: implementation scope, deployment authorization (`none` by default), and monitoring authorization (`observe-only` by default)
 - For debugging and CI work, identify the failure ownership boundary and compare last passing vs first failing state before proposing fixes
 
-**Exit condition:** The important design decisions have been resolved or clearly parked.
+**Exit condition:** The important design decisions have been resolved or clearly parked, and the original baseline plus task-owned planning ledger are ready for handoff.
 
 ---
 
@@ -33,13 +36,22 @@ Goals:
 - Define acceptance criteria (Given/When/Then)
 - Record affected modules, interface changes, and chosen feedback loops
 - Create implementation slices and beads-ready task slices
-- Create feature branch
+- Present the implementation contract and state that approval authorizes only its in-scope repository edits and non-mutating feedback loops
+- After implementation approval, set `branch_name="feature/<feature-slug>"`, run `git check-ref-format --branch "${branch_name}"`, and propose the exact create/switch operation
+- Ask the user to approve creating/switching, explicitly decline and continue on the current branch, or stop after planning
 - Keep user-facing process overhead proportional to the size and ambiguity of the task
 
-**Exit condition:** User gives explicit approval to proceed.
+Implementation approval does not authorize a branch operation, deployment, staging, or commit. If the user explicitly declines the proposed feature branch, continue on the current branch and record that decision. If the user asks to stop, do not hand off to Stage 2.
+
+**Exit condition:** The user approved implementation and selected an explicit branch path: approved create/switch or declined and continue current.
 
 **Handoff to Stage 2** — Pass to Feature-Implementation agent:
 - Spec path
+- Original branch/HEAD, staged/unstaged/untracked baseline, and any preserved overlapping-path patch
+- Task-owned change ledger, including planning artifacts
+- Branch decision and current branch/HEAD
+- Deployment authorization: none, or the exact approved target and operation
+- Monitoring authorization: observe-only, or the exact separately authorized action
 - Shared design decisions
 - Affected modules
 - Interface changes
@@ -62,31 +74,60 @@ Goals:
 **Mode:** Autonomous (no user interaction)
 
 The agent will:
-1. Read `.agents/anti-patterns.md`
-2. Read the approved feature spec and load the glossary / module map when present
-3. Explore identified files to understand patterns
-4. Implement the feature in red/green/refactor slices
-5. Run the configured feedback loops as the implementation evolves
-6. Update shared terms or module boundaries if the feature changes them
-7. Clean up (dead code, naming, DRY)
-8. Report completion
+1. Verify that the current worktree equals the original baseline plus task-owned planning changes; stop on unexplained drift
+2. Read `.agents/anti-patterns.md`
+3. Read the approved feature spec and load the glossary / module map when present
+4. Explore identified files to understand patterns
+5. Implement the feature in red/green/refactor slices and update the task-owned change ledger
+6. Run the configured non-mutating feedback loops as the implementation evolves
+7. For infrastructure work, keep live apply/deploy outside TDD and require explicit authorization naming the target and operation
+8. Update shared terms or module boundaries if the feature changes them
+9. Clean up (dead code, naming, DRY)
+10. Report completion with the original baseline, task-owned ledger, authority boundaries, and verification evidence
 
 **Context budget check:** If the feature is large enough to risk hitting context limits, split into sub-tasks and complete them sequentially. Never half-finish an implementation.
 
 ---
 
-## Stage 2.5 — Human Review (MANDATORY CHECKPOINT)
+## Stage 2.5A — Implementation And Staging-Plan Review (MANDATORY CHECKPOINT)
 
 **Mode:** Interactive with user
 
-Run:
+Compare the current worktree with the original baseline and task-owned change ledger. Present:
+- the complete task-owned implementation diff, including untracked task files
+- every pre-existing path that remains excluded
+- every intended Beads status change
+- every generated-artifact refresh that must run before staging
+- the exact source files proposed for staging before preparation
+- the exact generated files expected from preparation and proposed for staging afterward
+
+Ask: "Approve running commit preparation and staging exactly this plan?"
+
+This approval authorizes `.githooks/prepare-commit` and the exact staging plan only. It is not commit approval.
+
+---
+
+## Stage 2.5B — Exact Staged-Set Review (MANDATORY CHECKPOINT)
+
+After Stage 2.5A approval:
+
+1. Make all intended Beads state changes.
+2. Stage only the approved source paths, individually by name.
+3. Run `.githooks/prepare-commit`.
+4. Inspect every resulting worktree change and stop if preparation expands beyond the approved scope.
+5. Stage only the approved generated paths, individually by name, including `.beads/issues.jsonl`.
+6. Run and present:
+
 ```bash
-git diff main...HEAD
+git diff --cached --name-status
+git diff --cached
+git rev-parse HEAD
+git write-tree
 ```
 
-Present the diff to the user and ask: "Ready to commit? Approve to continue to Stage 3."
+Present the proposed semantic commit message. Ask the user to approve committing that exact full cached diff, current HEAD, and tree identity.
 
-**Do not proceed until the user explicitly approves.**
+**Do not proceed until the user explicitly approves the exact staged set. If any staged path, cached content, HEAD, or tree identity changes afterward, return to this checkpoint.**
 
 ---
 
@@ -97,11 +138,13 @@ Present the diff to the user and ask: "Ready to commit? Approve to continue to S
 **Mode:** Autonomous
 
 The agent will:
-1. Run `git status` + `git diff`
-2. Stage files individually
-3. Create a semantic commit (feat/fix/refactor/test/chore)
-4. Verify with `git log`
-5. Report commit hash
+1. Receive the original baseline, task-owned ledger, approved commit message, approved HEAD, and approved tree identity
+2. Re-run `git rev-parse HEAD` and `git write-tree`
+3. Stop and return to Stage 2.5B if either value changed
+4. Create the semantic commit (feat/fix/refactor/test/chore)
+5. Require pre-commit hooks to validate only; they must not modify or stage files
+6. Verify `git rev-parse HEAD^{tree}` matches the approved tree
+7. Verify with `git log` and report the commit hash, message, and tree verification
 
 **Never push** without explicit user instruction.
 
@@ -116,13 +159,19 @@ User: /feature-start
 [Stage 0] Shared design ─────────► Decisions resolved
        │
        ▼
-[Stage 1] Feature spec ──────────► User approval
+[Stage 1] Feature spec ──────────► Implementation approval
+       │
+       ▼
+       Optional branch decision ─► Create/switch OR continue current
        │
        ▼
 [Stage 2] Feature-Implementation ► Tests passing
        │
        ▼
-[Stage 2.5] Human review diff ──► User approval
+[Stage 2.5A] Implementation diff + staging plan ─► Prepare/stage approval
+       │
+       ▼
+[Stage 2.5B] Full cached diff + HEAD/tree ──────► Exact commit approval
        │
        ▼
 [Stage 3] Git-Manager commit ───► Done

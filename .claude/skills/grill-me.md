@@ -14,6 +14,17 @@ Use this skill when:
 
 ## Step 1 — Load the Existing Design Context
 
+Before any task claim, feature-spec write, branch operation, or other repository mutation, capture the original worktree baseline:
+
+```bash
+git status --short --branch --untracked-files=all
+git diff --name-status
+git diff --cached --name-status
+git ls-files --others --exclude-standard
+```
+
+Record the original branch and HEAD plus every staged, unstaged, and untracked path in the task/session context, then start a task-owned change ledger. If `/feature-start` or another workflow already supplied a trustworthy original baseline and ledger, reuse and extend them rather than recapturing a post-mutation worktree.
+
 Before you ask questions, read these files when they exist:
 - `.agent-scaffold.json`
 - `.agents/context/ubiquitous-language.md`
@@ -27,6 +38,14 @@ Then explore `src/` to understand the current implementation shape, similar feat
 ## Step 2 — Interview Relentlessly
 
 Ask focused questions until the important design branches are resolved or explicitly parked.
+
+For exploratory prompts, guessing games, or design probes, use the useful part of cold reading without the fraud:
+- Make broad, falsifiable reads instead of jumping to one precise answer.
+- Offer 2-4 plausible hypotheses when the user's intent is intentionally under-specified.
+- Label confidence and uncertainty plainly.
+- Ask one small steering question that lets the user correct the frame with minimal effort.
+- Treat the user's correction as signal, then narrow the hypothesis.
+- Never present inference as evidence.
 
 Good questions are:
 - Scope-shaping
@@ -60,9 +79,11 @@ Create or update `.agents/plans/<feature-slug>.md` with:
 - Interface changes
 - Acceptance criteria
 - Feedback loops
+- Mutation boundaries, including deployment authorization (`none` unless the exact target and operation were explicitly approved)
+- Monitoring authorization (`observe-only` unless a bounded action was separately approved)
 - Open questions / parked decisions
 
-This file is the durable record of the shared design concept. Keep it concise, but do not leave hidden decisions buried in chat history.
+This file is the durable record of the shared design concept. Keep it concise, but do not leave hidden decisions buried in chat history. Record the feature-spec path as task-owned in the change ledger; keep the original baseline in task/session handoff context rather than writing a tracked side ledger.
 
 ## Step 4 — Decide Whether Planning Can Continue
 
@@ -70,5 +91,6 @@ You may hand back to `/feature-start` or the user once:
 - The blocking design questions are resolved
 - The remaining open questions are explicitly non-blocking
 - The feature spec is concrete enough for implementation
+- The original baseline and task-owned change ledger are ready to pass forward
 
 If the design is still under-specified, keep grilling. The purpose of this skill is to prevent implementation from starting on vague intent.

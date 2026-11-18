@@ -53,7 +53,7 @@ The local skill's rules override the default Beads gate when they are more speci
 
 ## Project-Specific Safety Constraints
 
-Use this section only for constraints that remain genuinely local after `/resolve-adopted-artifacts` has separated universal workflow rules from repository-specific values. Promote general agent-workflow lessons to the upstream scaffold templates instead of storing them here. Keep any local constraints concrete: exact commands, paths, protected files, or operational contracts.
+Use this section only for constraints that remain genuinely local after `/resolve-adopted-artifacts` has separated universal workflow rules from repository-specific values. Promote general agent-workflow lessons to the upstream scaffold templates instead of storing them here. Keep any local constraints concrete: exact commands, paths, protected files, or operational contracts. Repository-specific affected-test versus full-suite policy belongs here, including the exact commands, trigger boundary, and which gate is mandatory before commit.
 
 ## Code Style Guidelines
 
@@ -76,11 +76,23 @@ Do **not** create or claim Beads tasks just to talk about the codebase, inspect 
 
 Do **not** split bookkeeping into extra tasks. If investigation and a narrow fix are one coherent body of work, use one task. Create a discovered follow-up only for genuinely separate remaining work, not for the act of tracking, confirming, or finishing the current task.
 
+Before the first mutation for any body of work — including a task claim, feature-spec write, branch operation, generated-file refresh, or code edit — capture the original worktree baseline:
+
+```bash
+git status --short --branch --untracked-files=all
+git diff --name-status
+git diff --cached --name-status
+git ls-files --others --exclude-standard
+```
+
+Record the original branch and HEAD, staged paths, unstaged paths, and untracked paths in the task/session context. Preserve the original patch for any already-dirty path that the work may also touch. Do not write this baseline into a tracked side ledger. Start a task-owned change ledger after capture, and carry both the original baseline and the task-owned ledger through every agent or workflow handoff. If mutation already started without a trustworthy original baseline, stop rather than guessing which changes belong to the task.
+
 **Before starting any tracked body of work**, you must have a single claimed Beads task in hand. One task covers all the edits for that work.
-1. **Run `bd ready --json`** to inspect open tasks.
-2. **If a match exists**, claim it: `bd update <id> --claim --json`. Announce the claimed ID in your first response.
-3. **If no match exists**, create one first, then claim it. Do not start planning or editing until the task is created and claimed.
-4. **Announce the task ID** in your response before any plan or code (e.g., `Working on {{BEADS_PREFIX}}-xxx — <title>`).
+1. **Capture the original worktree baseline** before any task-tracker mutation.
+2. **Run `bd ready --json`** to inspect open tasks.
+3. **If a match exists**, claim it: `bd update <id> --claim --json`. Announce the claimed ID in your first response.
+4. **If no match exists**, create one first, then claim it. Do not start planning or editing until the task is created and claimed.
+5. **Announce the task ID** in your response before any plan or code (e.g., `Working on {{BEADS_PREFIX}}-xxx — <title>`).
 
 ### Working with Tasks
 
@@ -122,13 +134,13 @@ bd close <id> --reason "done" --json
 
 ### Git Integration & Clone Contract
 
-`.beads/issues.jsonl` is the git-tracked snapshot; the pre-commit hook refreshes it via `bd export --no-memories` and auto-stages changes, so task state travels with commits. Do not edit `.beads/issues.jsonl` by hand. Do not bypass the hook (`--no-verify`).
+`.beads/issues.jsonl` is the git-tracked issue-only snapshot. Before the final staged review, `.githooks/prepare-commit` refreshes it with the export syntax supported by the installed Beads version; stage the resulting tracked changes explicitly so the user reviews the exact snapshot that will be committed. The pre-commit hook validates freshness and index stability only; it must not modify or stage files. Do not edit `.beads/issues.jsonl` by hand. Do not bypass the hook (`--no-verify`).
 
 Agents must not run `git add`, `git commit`, or `git push` as an automatic session-close workflow. Do not run `bd dolt push` as session-close workflow. Commits and pushes require explicit user approval for that action and scope.
 
-Agents must not create or switch branches unless the user explicitly approves the branch operation. Approval to implement, continue, use TDD, or follow a feature workflow is not approval to change branches. If a workflow recommends a branch, present the proposed branch name and stop for explicit branch-switch approval before running `git checkout`, `git switch`, or equivalent.
+Agents must not create or switch branches unless the user explicitly approves the exact branch operation. Approval to implement, continue, use TDD, or follow a feature workflow is not approval to change branches. Feature workflows propose the validated branch-safe name `feature/<feature-slug>`; never interpolate the human project name into a Git ref. If the user explicitly declines the proposed feature branch, continue on the current branch and record that decision unless the user instead asks to stop.
 
-Before staging or committing, capture a dirty-worktree baseline and identify the exact intended file list. If unrelated dirty files exist, call them out and exclude them from the staging plan. Do not stage generated files, scaffold files, or unrelated local modifications just because they are present in the working tree. The commit message must match the staged file set; if the staged scope has broadened, stop and ask for review.
+Before staging or committing, compare the current worktree with the original pre-mutation baseline and the task-owned change ledger; do not replace them with a new baseline. First present the implementation diff and exact preparation/staging plan, distinguishing source paths from expected generated outputs, then stop for approval. After approval, stage each approved source path individually, run `.githooks/prepare-commit`, and inspect every resulting worktree change. Stop if preparation expands beyond the approved scope. Then stage each approved generated path individually and present `git diff --cached --name-status`, the full `git diff --cached`, the current HEAD, and `git write-tree`. Commit approval applies only to that exact HEAD and tree. If either changes before commit, stop and repeat the final staged review. Do not stage generated files, scaffold files, or unrelated local modifications merely because they are present.
 
 Important: the presence of `.beads/config.yaml`, `.beads/clone-contract.json`, or `.githooks/pre-commit` does **not** by itself prove that the local Beads database has been bootstrapped. Treat “files scaffolded” and “tool operational” as separate states.
 
@@ -146,8 +158,9 @@ Important: the presence of `.beads/config.yaml`, `.beads/clone-contract.json`, o
 **When ending a work session**, you MUST complete ALL steps below:
 1. **File issues for remaining work** - Create issues for anything that needs follow-up, using `--deps discovered-from:<id>`
 2. **Run quality gates** (if code changed) - Tests, linters, builds
-3. **Update issue status** - Close finished work, update in-progress items
-4. **Hand off** - Provide context for next session along with a fitting conventional commit message
+3. **Update issue status** - Make every intended Beads state change before commit preparation
+4. **Prepare and review only when explicitly requested** - If the user wants a commit, run the two approval checkpoints before committing. Otherwise leave preparation and staging untouched.
+5. **Hand off** - Provide the original baseline, task-owned ledger, verification evidence, exact proposed staging plan, and a fitting conventional commit message
 
 If the unit of work changed any git-tracked files, the handoff must include a meaningful, high-signal conventional commit message. Do not end a tracked-file work session without one.
 
@@ -163,6 +176,7 @@ If a repository still has legacy `.claude/plans/`, `.claude/context/`, or `.clau
 ## Working Agreements
 
 - Explore the codebase and understand existing patterns before implementing anything
+- Capture the original worktree baseline before the first task claim, spec write, branch operation, or edit, and carry it with the task-owned change ledger through every handoff
 - Reach a shared design concept before writing code; ambiguous work should go through a grilling/interview phase first
 - For exploratory thought exercises, guessing games, or design probes, use a calibrated hypothesis interview: offer a few plausible broad readings, label confidence, ask a small steering question, and narrow from the user's reaction instead of rushing to one concrete answer
 - Plan and confirm acceptance criteria with the user before writing code
@@ -171,15 +185,15 @@ If a repository still has legacy `.claude/plans/`, `.claude/context/`, or `.clau
 - Keep terminology aligned with the glossary; update it when the domain language changes
 - Design around module boundaries and simple interfaces, especially for refactors
 - Implement in small red/green/refactor steps and stay within the fastest available feedback loop
-- For infrastructure, deployment, configuration, or YAML-heavy work, make the red step a contract check that rejects unsafe state before mutation; successful deployment should imply that preconditions were actually verified, not merely that commands eventually passed.
-- When the user asks you to monitor, babysit, follow through, or see a run through to deployment, keep that monitoring mission as the primary objective until a terminal success or a clearly named blocker. Fixes and investigations should support that objective, and after each detour return to the run being watched.
+- For infrastructure, deployment, configuration, or YAML-heavy work, keep red/green checks non-mutating: render, parse, lint, policy, plan, preflight, or a documented no-apply dry run. A live apply/deploy is not a red or green test and requires separate explicit authorization naming the target and operation.
+- A request to monitor, babysit, follow through, or watch a deployment authorizes persistent observation only. Without separate mutation authority, limit activity to polling, logs/status inspection, read-only diagnosis, and reporting until success, terminal failure, or a named blocker. Retries, restarts, fixes, deployments, repository edits, external writes, and messages require their own authorization; after any authorized detour, return to the watched run.
 - When adding or debugging runtime environment variables, verify the full delivery path: documented env template, secret/project env source, deploy template interpolation, service/container injection, and application settings. Add or update a contract test so documented runtime variables cannot drift from the deployment service environment.
 - Get explicit user approval before committing changes
 - Get explicit user approval before creating or switching branches; implementation approval is not branch approval
 - Run the full test suite before any commit — do not commit with failing tests
 - Prefer interface-level tests over tests of internal implementation details
 - Stage files individually; never blindly add everything
-- Before staging, compare the current dirty worktree to the intended scope and exclude unrelated pre-existing changes
+- Before staging, compare against the original baseline, exclude unrelated pre-existing changes, obtain preparation/staging approval, stage approved sources, run `.githooks/prepare-commit`, inspect scope, stage approved generated outputs, and obtain approval for the exact cached diff and `git write-tree` result
 - Semantic commit messages: `<type>(<scope>): summary` with a body explaining *why*
 - When handing work back with tracked-file changes, always provide a meaningful, high-signal conventional commit message even if no commit is being created yet
 - Never force-push, never bypass commit hooks

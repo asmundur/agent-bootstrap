@@ -1,11 +1,38 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-source "$(cd "$(dirname "$0")" && pwd)/_common.sh"
+hook_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${hook_dir}/_common.sh"
 
-"$(cd "$(dirname "$0")" && pwd)/beads-pre-commit.sh" "$@"
+cd "${repo_root}"
+require_main_git_index "pre-commit"
 
-local_pre_commit="${repo_root}/.githooks/pre-commit.local"
-if [[ -x "${local_pre_commit}" ]]; then
-  "${local_pre_commit}" "$@"
+entry_tree="$(git_index_tree)"
+pre_commit_validate="${repo_root}/.githooks/pre-commit.validate"
+require_executable_hook_extension "${pre_commit_validate}" "pre-commit"
+if [[ -f "${pre_commit_validate}" && -x "${pre_commit_validate}" && ! -L "${pre_commit_validate}" ]]; then
+  validate_status=0
+  validate_index_status=0
+  "${pre_commit_validate}" "$@" || validate_status=$?
+  assert_git_index_tree_unchanged "${entry_tree}" "${pre_commit_validate}" \
+    || validate_index_status=$?
+  if [[ "${validate_status}" -ne 0 ]]; then
+    echo >&2 "pre-commit: ${pre_commit_validate} failed with status ${validate_status}."
+    exit "${validate_status}"
+  fi
+  if [[ "${validate_index_status}" -ne 0 ]]; then
+    exit "${validate_index_status}"
+  fi
+fi
+
+beads_status=0
+beads_index_status=0
+"${hook_dir}/beads-pre-commit.sh" "$@" || beads_status=$?
+assert_git_index_tree_unchanged "${entry_tree}" "pre-commit validation" \
+  || beads_index_status=$?
+if [[ "${beads_status}" -ne 0 ]]; then
+  exit "${beads_status}"
+fi
+if [[ "${beads_index_status}" -ne 0 ]]; then
+  exit "${beads_index_status}"
 fi

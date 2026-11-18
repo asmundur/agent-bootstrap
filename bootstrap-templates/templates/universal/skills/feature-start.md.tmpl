@@ -8,6 +8,17 @@ Produce a fully-specified, user-approved feature spec and implementation contrac
 
 ## Stage 0 — Load Shared Context
 
+Before any task claim, feature-spec write, branch operation, or other repository mutation, capture the original worktree baseline:
+
+```bash
+git status --short --branch --untracked-files=all
+git diff --name-status
+git diff --cached --name-status
+git ls-files --others --exclude-standard
+```
+
+Record the original branch and HEAD plus every staged, unstaged, and untracked path in the task/session context. Preserve the original patch for any already-dirty path the feature may also touch. Start a task-owned change ledger after capture. If `/grill-me` or another workflow already supplied a trustworthy original baseline and ledger, reuse and extend them instead of recapturing the current worktree.
+
 Before asking questions, load the durable project context when it exists:
 
 - `.agent-scaffold.json`
@@ -46,13 +57,16 @@ Create or update `.agents/plans/<feature-slug>.md` with:
   - Tests: `{{TEST_COMMAND}}`
 - Implementation slices in execution order
 - Beads-ready task slices for any work that should be split across multiple units
+- Mutation boundaries, including whether any external apply/deploy is in scope
+- Deployment authorization: `none` unless the user explicitly named the target and operation
+- Monitoring authorization: `observe-only` unless the user separately authorized a bounded action
 - Open questions or explicitly parked decisions
 
 If a feedback-loop command is `not configured`, mark it as intentionally skipped in the spec instead of pretending it exists.
 
 If the task is a small investigation or guidance change, keep user-facing process overhead proportional: record the contract, but avoid turning routine work into unnecessary ceremony.
 
-## Stage 2 — Prepare the Implementation Contract
+## Stage 1 — Prepare the Implementation Contract
 
 Present to the user:
 - The feature summary
@@ -62,10 +76,12 @@ Present to the user:
 - The chosen feedback loops
 - The implementation slices
 - The spec path
+- The original worktree baseline summary and current task-owned change ledger
+- The branch, deployment, and monitoring authority boundaries
 
 If your tool supports session task tracking, mirror the implementation slices there as well. The spec remains the durable source of truth.
 
-## Phase 5 — User Approval (MANDATORY CHECKPOINT)
+## Stage 1 — User Approval (MANDATORY CHECKPOINT)
 
 Present to the user:
 - Summary of the feature
@@ -73,29 +89,46 @@ Present to the user:
 - Implementation slices
 - Estimated scope (number of files, rough complexity)
 - Spec path: `.agents/plans/<feature-slug>.md`
+- Authority granted by approval: only the in-scope repository edits and non-mutating feedback loops described by the contract
 
 **Stop here and wait for explicit approval before proceeding.**
 
-Say: "Ready to hand off to the Feature-Implementation agent. Approve to continue to Stage 2?"
+Say: "Approve this implementation contract and continue to the branch decision? This approval authorizes only its in-scope repository edits and non-mutating feedback loops; branch creation, deployment, staging, and commit remain separate."
 
-## Phase 6 — Create Feature Branch
+## Stage 1 — Optional Feature Branch Decision
 
-After implementation approval, propose the branch operation but do not run it yet. Implementation approval is not branch-switch approval.
+After implementation approval, derive the branch name from the already branch-safe feature-spec slug, never from `{{PROJECT_NAME}}`:
+
+```bash
+branch_name="feature/<feature-slug>"
+git check-ref-format --branch "${branch_name}"
+```
+
+If validation fails or the branch already exists, stop and propose a corrected, explicit operation. Do not silently reuse, reset, or switch to an existing branch.
 
 Present:
 - Current branch
-- Proposed branch name: `feature/{{PROJECT_NAME}}-<short-description>`
-- Any existing dirty files that would carry across the branch switch
+- Current HEAD
+- Proposed create-and-switch operation: `git switch -c "feature/<feature-slug>"`
+- The original baseline and task-owned files that would carry across the branch switch
 
-Stop and ask: "Approve switching to this feature branch?"
+Stop and ask: "Approve creating and switching to this feature branch, decline and continue on the current branch, or stop after planning?"
 
-Only after explicit branch-switch approval:
+If the user approves the exact create-and-switch operation:
+
 ```bash
-git checkout -b feature/{{PROJECT_NAME}}-<short-description>
+git switch -c "${branch_name}"
 ```
+
+If the user explicitly declines the proposed feature branch, continue on the current branch and record that decision. If the user asks to stop, end after planning. After either approved implementation path, compare the current worktree with the original baseline plus task-owned planning changes and stop on unexplained drift.
 
 Then hand off to the Feature-Implementation agent with:
 - Spec path
+- Original branch, HEAD, staged/unstaged/untracked baseline, and any preserved overlapping-path patch
+- Task-owned change ledger, including the feature spec
+- Branch decision and current branch/HEAD
+- Deployment authorization: none, or the exact approved target and operation
+- Monitoring authorization: observe-only, or the exact separately authorized action
 - Shared design decisions
 - Affected modules
 - Interface changes

@@ -18,8 +18,7 @@ Work in strict red/green/refactor cycles:
 For infrastructure, deployment, configuration, and YAML-heavy work, treat TDD
 as contract-first delivery rather than ordinary feature construction. The red
 phase should prove that an unsafe or ambiguous state is rejected before any
-mutation happens. A failed deployment, plan, preflight, lint, or smoke check is
-useful when it fails early for the expected contract reason.
+mutation happens.
 
 Prefer checks that enforce:
 - preflight validation before host, cloud, DNS, database, queue, secret, or
@@ -35,10 +34,19 @@ rendered Compose services, Kubernetes manifests, Ansible inventory variables,
 GitHub Actions workflow ordering, Terraform plans, Caddy routes, secret
 delivery paths, and public ingress rules.
 
-Successful deployment is the green phase only when the required preconditions
-were actually verified. Do not weaken a guardrail just to make a deploy pass;
-refine the implementation until the contract is satisfied or stop with an
-early, loud, actionable failure.
+Red and green checks are non-mutating by default: render, parse, lint, policy,
+plan, preflight, read-only smoke checks, or a documented dry run
+that guarantees no apply. A failed live apply/deploy is not a red check because
+it may already have partially mutated external state. A successful live deploy
+is release verification after the contract is green, not the green phase.
+
+Run a live apply/deploy only when the user explicitly authorized the exact
+target and operation, either in the approved implementation handoff or in a
+later message. Before applying, verify the non-mutating checks, expected blast
+radius, and recovery path. If deployment fails, stop with a named blocker or
+follow only the separately authorized recovery action; do not turn repeated
+deployments into a feedback loop. Never weaken a guardrail just to make a
+deploy pass.
 
 ## Required Inputs
 
@@ -49,7 +57,16 @@ Before starting, read:
 
 If the approved spec or shared context still exists only under legacy `.claude/...` paths, read it as migration evidence and keep new updates under `.agents/`.
 
-Before editing, capture `git status --short --branch` and treat it as the dirty-worktree baseline. Do not create or switch branches, stage files, commit, or emit commit/stage directives as part of TDD unless the user explicitly approved that exact git operation. Approval to implement with `/tdd` only authorizes code/test edits and feedback loops.
+Receive the original worktree baseline and task-owned change ledger from the planning handoff. If `/tdd` is the direct entry path and no mutation has happened, capture the original baseline before any task claim, spec write, branch operation, or edit:
+
+```bash
+git status --short --branch --untracked-files=all
+git diff --name-status
+git diff --cached --name-status
+git ls-files --others --exclude-standard
+```
+
+If mutation already happened without a trustworthy original baseline, stop rather than recapturing the current worktree and guessing ownership. Record each TDD edit in the task-owned change ledger. Do not create or switch branches, stage files, commit, emit commit/stage directives, or run a live apply/deploy unless the user explicitly approved that exact operation. Approval to implement with `/tdd` authorizes only code/test edits and non-mutating feedback loops by default.
 
 ## Feedback Loops
 
@@ -79,4 +96,4 @@ If you find yourself writing a lot of code before running a check, you are outru
 
 This skill is the default implementation style for the Feature-Implementation agent.
 
-When finishing, report changed files by intended scope and call out any dirty files that existed before or outside the work. Leave staging and commits to the explicit review/commit workflow.
+When finishing, report the original baseline, task-owned change ledger, changed files by intended scope, deployment authorization/result, and any dirty files that existed before or outside the work. Leave preparation, staging, final cached-diff review, and commit to the explicit review/commit workflow.
